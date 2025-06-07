@@ -7,19 +7,26 @@ puppeteer.use(StealthPlugin());
 
 const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45dHT2zfE6k8GjaskiT9CpaqEGEvmPtHsJrgrS7cQx5gw1qvd8/exec";
 const EXISTING_URLS_API = WEBHOOK_URL;
+
 const YOUTUBE_CHANNELS = [
-  "https://www.youtube.com/@soshina",       // 粗品
-  "https://www.youtube.com/@KYOUPOKE"       // 今日ポケ
-  // 他にも追加可能
+  "https://www.youtube.com/@soshina",      // 粗品
+  "https://www.youtube.com/@KYOUPOKE"      // 今日ポケ
 ];
 
+// ✅ URLからvideo IDを抽出
 function extractVideoId(url) {
   const match = url?.match(/[?&]v=([\w-]{11})|\/shorts\/([\w-]{11})|\/watch\?v=([\w-]{11})/);
   return match ? (match[1] || match[2] || match[3]) : null;
 }
 
+// ✅ URLから "YouTube Shorts" 判定
+function isShorts(url) {
+  return url.includes("/shorts/");
+}
+
 (async () => {
   let existingVideoIds = [];
+
   try {
     const res = await fetch(EXISTING_URLS_API);
     const urls = await res.json();
@@ -33,7 +40,6 @@ function extractVideoId(url) {
 
   const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
   const page = await browser.newPage();
-
   await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/114.0.0.0 Safari/537.36");
 
   for (const channelUrl of YOUTUBE_CHANNELS) {
@@ -50,7 +56,6 @@ function extractVideoId(url) {
       });
 
       if (!result) throw new Error("❌ 投稿が見つかりませんでした");
-
       const normalizedUrl = result.videoUrl.trim();
       const videoId = extractVideoId(normalizedUrl);
       if (!videoId || existingVideoIds.includes(videoId)) {
@@ -58,8 +63,9 @@ function extractVideoId(url) {
         continue;
       }
 
-      const platform = normalizedUrl.includes("/shorts/") ? "YouTube Shorts" : "YouTube";
       const publishedDate = new Date().toISOString().split("T")[0];
+      const platform = isShorts(normalizedUrl) ? "YouTube Shorts" : "YouTube";
+
       const data = {
         publishedDate,
         platform,
@@ -74,7 +80,7 @@ function extractVideoId(url) {
         headers: { "Content-Type": "application/json" }
       });
 
-      console.log(`✅ 送信成功: ${result.title}（${platform}）`);
+      console.log(`✅ 送信成功: ${result.title}`);
     } catch (e) {
       console.error(`❌ 処理失敗（${channelUrl}）:`, e.message);
     }
