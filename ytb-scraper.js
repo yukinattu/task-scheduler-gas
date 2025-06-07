@@ -47,10 +47,10 @@ function isShorts(url) {
       await page.waitForTimeout(3000);
 
       const video = await page.evaluate(() => {
-        const anchor = document.querySelector('a#video-title');
-        const href = anchor?.href;
-        const title = anchor?.getAttribute("title") || anchor?.textContent?.trim();
-        return href ? { videoUrl: href, title: title || "(タイトル不明)" } : null;
+        const anchors = Array.from(document.querySelectorAll('ytd-grid-video-renderer a#thumbnail'));
+        const first = anchors.find(a => a?.href?.includes('/watch'));
+        const title = first?.parentElement?.parentElement?.querySelector("#video-title")?.textContent?.trim();
+        return first ? { videoUrl: first.href, title: title || "(タイトル不明)" } : null;
       });
 
       if (!video) throw new Error("❌ 投稿が見つかりませんでした");
@@ -69,7 +69,7 @@ function isShorts(url) {
       const data = {
         publishedDate,
         platform,
-        channel: channelUrl.split("/").pop().replace(/^@/, ""),
+        channel: channelUrl.split("/").pop(),
         title: video.title,
         videoUrl: normalizedUrl
       };
