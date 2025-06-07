@@ -4,7 +4,7 @@ const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fet
 
 puppeteer.use(StealthPlugin());
 
-const WEBHOOK_URL = "https://script.google.com/macros/s/1Up9RPWZuyz8CXqRhidQhd6bjb-iHXTGXS3jsaDBabAU/exec";
+const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbw4IURfCME6jK2y3EghD9FLNhoAx25RtOaUzCyjBuwTbMiEz9PNpABjjApVOSmFjZ_9/exec";
 const TIKTOK_USER = "nogizaka46_official";
 
 (async () => {
