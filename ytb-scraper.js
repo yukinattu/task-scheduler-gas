@@ -8,8 +8,8 @@ const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45d
 const EXISTING_URLS_API = WEBHOOK_URL;
 
 const YOUTUBE_CHANNELS = [
-  "https://www.youtube.com/@soshina",      // 粗品
-  "https://www.youtube.com/@KYOUPOKE"      // 今日ポケ
+  "https://www.youtube.com/@soshina",
+  "https://www.youtube.com/@KYOUPOKE"
 ];
 
 // ✅ URLからvideo IDを抽出
@@ -18,7 +18,7 @@ function extractVideoId(url) {
   return match ? (match[1] || match[2] || match[3]) : null;
 }
 
-// ✅ URLから Shorts 判定
+// ✅ Shortsかどうかを判定
 function isShorts(url) {
   return url.includes("/shorts/");
 }
@@ -30,7 +30,7 @@ function isShorts(url) {
     const res = await fetch(EXISTING_URLS_API);
     const urls = await res.json();
     existingVideoIds = urls
-      .map(url => extractVideoId(url?.toString().trim()))
+      .map(url => extractVideoId((url || "").toString().trim()))
       .filter(Boolean);
     console.log("📄 既存動画ID数:", existingVideoIds.length);
   } catch (e) {
@@ -48,21 +48,19 @@ function isShorts(url) {
       await page.goto(`${channelUrl}/videos`, { waitUntil: "networkidle2", timeout: 0 });
       await page.waitForTimeout(3000);
 
-      const result = await page.evaluate(() => {
-        const a = document.querySelector('a[href*="/watch"]');
-        return a ? {
-          videoUrl: a.href,
-          title: a.textContent.trim() || "(タイトル不明)"
-        } : null;
+      const video = await page.evaluate(() => {
+        const anchor = document.querySelector('a#video-title');
+        const href = anchor?.href;
+        const title = anchor?.title || anchor?.textContent?.trim();
+        return href ? { videoUrl: href, title: title || "(タイトル不明)" } : null;
       });
 
-      if (!result) throw new Error("❌ 投稿が見つかりませんでした");
+      if (!video) throw new Error("❌ 投稿が見つかりませんでした");
 
-      const normalizedUrl = result.videoUrl.trim();
+      const normalizedUrl = video.videoUrl.trim();
       const videoId = extractVideoId(normalizedUrl);
 
-      if (!videoId) throw new Error("❌ 動画ID抽出失敗");
-      if (existingVideoIds.includes(videoId)) {
+      if (!videoId || existingVideoIds.includes(videoId)) {
         console.log(`⏭️ 重複スキップ: ${videoId}`);
         continue;
       }
@@ -74,17 +72,17 @@ function isShorts(url) {
         publishedDate,
         platform,
         channel: channelUrl.split("/").pop(),
-        title: result.title,
+        title: video.title,
         videoUrl: normalizedUrl
       };
 
-      const postRes = await fetch(WEBHOOK_URL, {
+      const res = await fetch(WEBHOOK_URL, {
         method: "POST",
         body: JSON.stringify(data),
         headers: { "Content-Type": "application/json" }
       });
 
-      console.log(`✅ 送信成功（${platform}）: ${result.title}`);
+      console.log(`✅ 送信成功（${platform}）: ${video.title}`);
     } catch (e) {
       console.error(`❌ 処理失敗（${channelUrl}）:`, e.message);
     }
