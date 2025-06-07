@@ -42,10 +42,10 @@ function isShorts(url) {
   await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/114.0.0.0 Safari/537.36");
 
   for (const channelUrl of YOUTUBE_CHANNELS) {
-    console.log(🚀 チェック開始: ${channelUrl});
+    console.log(`🚀 チェック開始: ${channelUrl}`);
 
     try {
-      await page.goto(${channelUrl}/videos, { waitUntil: "networkidle2", timeout: 0 });
+      await page.goto(`${channelUrl}/videos`, { waitUntil: "networkidle2", timeout: 0 });
       await page.waitForTimeout(3000);
 
       const result = await page.evaluate(() => {
@@ -63,7 +63,7 @@ function isShorts(url) {
 
       if (!videoId) throw new Error("❌ 動画ID抽出失敗");
       if (existingVideoIds.includes(videoId)) {
-        console.log(⏭️ 重複スキップ: ${videoId});
+        console.log(`⏭️ 重複スキップ: ${videoId}`);
         continue;
       }
 
@@ -84,9 +84,9 @@ function isShorts(url) {
         headers: { "Content-Type": "application/json" }
       });
 
-      console.log(✅ 送信成功（${platform}）: ${result.title});
+      console.log(`✅ 送信成功（${platform}）: ${result.title}`);
     } catch (e) {
-      console.error(❌ 処理失敗（${channelUrl}）:, e.message);
+      console.error(`❌ 処理失敗（${channelUrl}）:`, e.message);
     }
   }
 
