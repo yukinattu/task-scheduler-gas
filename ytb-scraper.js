@@ -19,7 +19,7 @@ function extractVideoId(url) {
   return match ? (match[1] || match[2] || match[3]) : null;
 }
 
-// ✅ URLから "YouTube Shorts" 判定
+// ✅ URLから Shorts 判定
 function isShorts(url) {
   return url.includes("/shorts/");
 }
@@ -44,43 +44,50 @@ function isShorts(url) {
 
   for (const channelUrl of YOUTUBE_CHANNELS) {
     console.log(`🚀 チェック開始: ${channelUrl}`);
+
     try {
       await page.goto(`${channelUrl}/videos`, { waitUntil: "networkidle2", timeout: 0 });
       await page.waitForTimeout(3000);
 
-      const result = await page.evaluate(() => {
-        const videoLink = document.querySelector("a#video-title");
-        const href = videoLink?.href;
-        const title = videoLink?.textContent?.trim();
-        return href && title ? { videoUrl: href, title } : null;
+      const results = await page.evaluate(() => {
+        const anchors = Array.from(document.querySelectorAll("a#video-title"));
+        return anchors.slice(0, 5).map(a => ({
+          videoUrl: a.href,
+          title: a.textContent.trim()
+        }));
       });
 
-      if (!result) throw new Error("❌ 投稿が見つかりませんでした");
-      const normalizedUrl = result.videoUrl.trim();
-      const videoId = extractVideoId(normalizedUrl);
-      if (!videoId || existingVideoIds.includes(videoId)) {
-        console.log(`⏭️ 重複スキップ: ${videoId}`);
-        continue;
+      for (const result of results) {
+        const normalizedUrl = result.videoUrl.trim();
+        const videoId = extractVideoId(normalizedUrl);
+
+        if (!videoId) continue;
+        if (existingVideoIds.includes(videoId)) {
+          console.log(`⏭️ 重複スキップ: ${videoId}`);
+          continue;
+        }
+
+        const publishedDate = new Date().toISOString().split("T")[0];
+        const platform = isShorts(normalizedUrl) ? "YouTube Shorts" : "YouTube";
+
+        const data = {
+          publishedDate,
+          platform,
+          channel: channelUrl.split("/").pop(),
+          title: result.title,
+          videoUrl: normalizedUrl
+        };
+
+        const res = await fetch(WEBHOOK_URL, {
+          method: "POST",
+          body: JSON.stringify(data),
+          headers: { "Content-Type": "application/json" }
+        });
+
+        console.log(`✅ 送信成功（${platform}）: ${result.title}`);
+        await page.waitForTimeout(1000); // 🔁 スプレッドシート反映の余裕
       }
 
-      const publishedDate = new Date().toISOString().split("T")[0];
-      const platform = isShorts(normalizedUrl) ? "YouTube Shorts" : "YouTube";
-
-      const data = {
-        publishedDate,
-        platform,
-        channel: channelUrl.split("/").pop(),
-        title: result.title,
-        videoUrl: normalizedUrl
-      };
-
-      const res = await fetch(WEBHOOK_URL, {
-        method: "POST",
-        body: JSON.stringify(data),
-        headers: { "Content-Type": "application/json" }
-      });
-
-      console.log(`✅ 送信成功: ${result.title}`);
     } catch (e) {
       console.error(`❌ 処理失敗（${channelUrl}）:`, e.message);
     }
