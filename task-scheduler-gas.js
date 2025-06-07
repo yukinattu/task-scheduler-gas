@@ -10,7 +10,7 @@ const TIKTOK_USER = "nogizaka46_official";
 (async () => {
   const browser = await puppeteer.launch({
     headless: true,
-    args: ['--no-sandbox']  // ← sandbox回避オプションを追加
+    args: ['--no-sandbox']
   });
 
   const page = await browser.newPage();
@@ -37,6 +37,18 @@ const TIKTOK_USER = "nogizaka46_official";
     });
 
     if (!videoElements) throw new Error("❌ 投稿が見つかりませんでした");
+
+    // ✅ 既存URLリスト（今は手動。将来的にはAPIやGAS経由で取得可能）
+    const existingUrls = [
+      "https://www.tiktok.com/@nogizaka46_official/video/7512743355852295431"
+      // 今後はGASのGET API等から取得に拡張可
+    ];
+
+    if (existingUrls.includes(videoElements.videoUrl)) {
+      console.log("✅ 既存の動画です。スキップします。");
+      await browser.close();
+      return;
+    }
 
     const publishedDate = new Date().toISOString().split("T")[0];
     const data = {
