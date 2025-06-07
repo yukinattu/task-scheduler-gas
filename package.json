@@ -1,0 +1,13 @@
+{
+  "name": "tiktok-scraper",
+  "version": "1.0.0",
+  "main": "scrape_tiktok.js",
+  "scripts": {
+    "start": "node scrape_tiktok.js"
+  },
+  "dependencies": {
+    "puppeteer-extra": "^3.3.4",
+    "puppeteer-extra-plugin-stealth": "^2.11.1",
+    "node-fetch": "^2.6.7"
+  }
+}
