@@ -17,4 +17,5 @@ jobs:
       - name: Install dependencies
         run: npm install
       - name: Run scraper
-        run: node scrape_tiktok.js
+        run: node task-scheduler-gas.js
+
