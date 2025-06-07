@@ -1,28 +1,29 @@
 const puppeteer = require("puppeteer-extra");
 const StealthPlugin = require("puppeteer-extra-plugin-stealth");
-const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
+const fetch = (...args) => import("node-fetch").then(({ default: fetch }) => fetch(...args));
 
 puppeteer.use(StealthPlugin());
 
-const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwoxLcJd6rVKXX8lk6c1uhIo4puPJHMbTZwhpq2L1IMfK1mm07QNhyUYOyg-lK4e1Y8/exec";
+const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbyUYFIXRDjTnidH5ZGeI-39BqlwsMuxELhV_XnBlqGTN_J1Vz--gl5Wr3mNBlaM79U1/exec";
 const EXISTING_URLS_API = WEBHOOK_URL;
 const TIKTOK_USERS = ["nogizaka46_official", "kurumin0726"];
 
-// 動画URLからvideo IDだけを抽出する
+// ▶️ 動画URLから video ID を抽出
 function extractVideoId(url) {
   const match = url?.match(/\/video\/(\d+)/);
   return match ? match[1] : null;
 }
 
 (async () => {
-  // ✅ 既存URL一覧を取得しvideoIdに変換
   let existingVideoIds = [];
+
+  // ✅ GASから既存URL一覧を取得し、videoIdへ変換・正規化
   try {
     const res = await fetch(EXISTING_URLS_API);
     const urls = await res.json();
     existingVideoIds = urls
-      .map(url => extractVideoId(url?.toString().trim().replace(/\/$/, '')))
-      .filter(Boolean); // null/undefined除外
+      .map(url => extractVideoId((url || "").toString().trim().replace(/\/+$/, "")))
+      .filter(Boolean);
     console.log("📄 既存動画ID数:", existingVideoIds.length);
   } catch (e) {
     console.warn("⚠️ 既存URL取得失敗:", e.message);
@@ -30,7 +31,7 @@ function extractVideoId(url) {
 
   const browser = await puppeteer.launch({
     headless: true,
-    args: ['--no-sandbox']
+    args: ["--no-sandbox"]
   });
 
   const page = await browser.newPage();
@@ -56,7 +57,7 @@ function extractVideoId(url) {
 
       if (!videoUrl) throw new Error("❌ 投稿が見つかりませんでした");
 
-      const normalizedUrl = videoUrl.trim().replace(/\/$/, '');
+      const normalizedUrl = videoUrl.trim().replace(/\/+$/, "");
       const videoId = extractVideoId(normalizedUrl);
 
       if (!videoId) throw new Error("❌ 動画IDの抽出に失敗");
@@ -65,7 +66,7 @@ function extractVideoId(url) {
         continue;
       }
 
-      // ▶ タイトル取得のため動画ページへ移動
+      // ▶️ タイトル取得のため動画ページに遷移
       await page.goto(normalizedUrl, { waitUntil: "networkidle2", timeout: 0 });
       await page.waitForTimeout(3000);
 
@@ -83,13 +84,13 @@ function extractVideoId(url) {
         videoUrl: normalizedUrl
       };
 
-      const res = await fetch(WEBHOOK_URL, {
+      const postRes = await fetch(WEBHOOK_URL, {
         method: "POST",
         body: JSON.stringify(data),
         headers: { "Content-Type": "application/json" }
       });
 
-      console.log(`✅ 送信成功（${TIKTOK_USER}）:`, await res.text());
+      console.log(`✅ 送信成功（${TIKTOK_USER}）:`, await postRes.text());
     } catch (e) {
       console.error(`❌ 処理失敗（${TIKTOK_USER}）:`, e.message);
     }
