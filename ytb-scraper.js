@@ -13,7 +13,6 @@ const YOUTUBE_CHANNELS = [
   // 他にも追加可能
 ];
 
-
 function extractVideoId(url) {
   const match = url?.match(/[?&]v=([\w-]{11})|\/shorts\/([\w-]{11})|\/watch\?v=([\w-]{11})/);
   return match ? (match[1] || match[2] || match[3]) : null;
@@ -51,6 +50,7 @@ function extractVideoId(url) {
       });
 
       if (!result) throw new Error("❌ 投稿が見つかりませんでした");
+
       const normalizedUrl = result.videoUrl.trim();
       const videoId = extractVideoId(normalizedUrl);
       if (!videoId || existingVideoIds.includes(videoId)) {
@@ -58,10 +58,11 @@ function extractVideoId(url) {
         continue;
       }
 
+      const platform = normalizedUrl.includes("/shorts/") ? "YouTube Shorts" : "YouTube";
       const publishedDate = new Date().toISOString().split("T")[0];
       const data = {
         publishedDate,
-        platform: "YouTube",
+        platform,
         channel: channelUrl.split("/").pop(),
         title: result.title,
         videoUrl: normalizedUrl
@@ -73,7 +74,7 @@ function extractVideoId(url) {
         headers: { "Content-Type": "application/json" }
       });
 
-      console.log(`✅ 送信成功: ${result.title}`);
+      console.log(`✅ 送信成功: ${result.title}（${platform}）`);
     } catch (e) {
       console.error(`❌ 処理失敗（${channelUrl}）:`, e.message);
     }
