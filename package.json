@@ -1,9 +1,9 @@
 {
   "name": "tiktok-scraper",
   "version": "1.0.0",
-  "main": "scrape_tiktok.js",
+  "main": "task-scheduler-gas.js",
   "scripts": {
-    "start": "node scrape_tiktok.js"
+    "start": "task-scheduler-gas.js"
   },
   "dependencies": {
     "puppeteer": "^21.3.8",
