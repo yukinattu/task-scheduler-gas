@@ -8,9 +8,11 @@ puppeteer.use(StealthPlugin());
 const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbyUYFIXRDjTnidH5ZGeI-39BqlwsMuxELhV_XnBlqGTN_J1Vz--gl5Wr3mNBlaM79U1/exec";
 const EXISTING_URLS_API = WEBHOOK_URL;
 const YOUTUBE_CHANNELS = [
-  "https://www.youtube.com/@nogizaka46", // 例: 乃木坂公式
+  "https://www.youtube.com/@soshina",       // 粗品
+  "https://www.youtube.com/@KYOUPOKE"       // 今日ポケ
   // 他にも追加可能
 ];
+
 
 function extractVideoId(url) {
   const match = url?.match(/[?&]v=([\w-]{11})|\/shorts\/([\w-]{11})|\/watch\?v=([\w-]{11})/);
