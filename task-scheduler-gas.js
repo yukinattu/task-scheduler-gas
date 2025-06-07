@@ -14,6 +14,7 @@ const TIKTOK_USERS = ["nogizaka46_official", "kurumin0726"]; // 複数アカウ�
   try {
     const res = await fetch(EXISTING_URLS_API);
     existingUrls = await res.json();
+    existingUrls = existingUrls.map(url => url.trim().replace(/\/$/, '')); // 正規化
     console.log("📄 既存URL数:", existingUrls.length);
   } catch (e) {
     console.warn("⚠️ 既存URL取得失敗:", e.message);
@@ -41,19 +42,19 @@ const TIKTOK_USERS = ["nogizaka46_official", "kurumin0726"]; // 複数アカウ�
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       const videoElements = await page.evaluate(() => {
-        const anchors = Array.from(document.querySelectorAll("a[href*='/video/']"));
-        if (anchors.length === 0) return null;
-        return {
-          videoUrl: anchors[0].href,
-          title: anchors[0].innerText || "(タイトル不明)"
-        };
+        const anchor = document.querySelector("a[href*='/video/']");
+        const caption = anchor?.parentElement?.querySelector("strong")?.innerText || "(タイトル不明)";
+        return anchor ? {
+          videoUrl: anchor.href,
+          title: caption
+        } : null;
       });
 
       if (!videoElements) throw new Error("❌ 投稿が見つかりませんでした");
 
-      // ✅ 重複チェック
-      if (existingUrls.includes(videoElements.videoUrl)) {
-        console.log(`⏭️ 重複スキップ: ${videoElements.videoUrl}`);
+      const normalizedUrl = videoElements.videoUrl.trim().replace(/\/$/, '');
+      if (existingUrls.includes(normalizedUrl)) {
+        console.log(`⏭️ 重複スキップ: ${normalizedUrl}`);
         continue;
       }
 
@@ -63,7 +64,7 @@ const TIKTOK_USERS = ["nogizaka46_official", "kurumin0726"]; // 複数アカウ�
         platform: "TikTok",
         channel: TIKTOK_USER,
         title: videoElements.title,
-        videoUrl: videoElements.videoUrl
+        videoUrl: normalizedUrl
       };
 
       const res = await fetch(WEBHOOK_URL, {
