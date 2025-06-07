@@ -31,7 +31,7 @@ function isShorts(url) {
     const res = await fetch(EXISTING_URLS_API);
     const urls = await res.json();
     existingVideoIds = urls
-      .map(url => extractVideoId(url?.toString().trim()))
+      .map(url => extractVideoId((url || "").toString().trim()))
       .filter(Boolean);
     console.log("📄 既存動画ID数:", existingVideoIds.length);
   } catch (e) {
@@ -49,12 +49,22 @@ function isShorts(url) {
       await page.goto(`${channelUrl}/videos`, { waitUntil: "networkidle2", timeout: 0 });
       await page.waitForTimeout(3000);
 
+      // ✅ selector robustness 向上: a[href*="/watch"]
       const results = await page.evaluate(() => {
-        const anchors = Array.from(document.querySelectorAll("a#video-title"));
-        return anchors.slice(0, 5).map(a => ({
-          videoUrl: a.href,
-          title: a.textContent.trim()
-        }));
+        const anchors = Array.from(document.querySelectorAll('a[href*="/watch"]'));
+        const seen = new Set();
+        return anchors
+          .filter(a => {
+            const url = a.href;
+            if (!url || seen.has(url)) return false;
+            seen.add(url);
+            return true;
+          })
+          .slice(0, 5) // 最新5件まで
+          .map(a => ({
+            videoUrl: a.href,
+            title: a.textContent.trim() || "(タイトル不明)"
+          }));
       });
 
       for (const result of results) {
@@ -85,7 +95,7 @@ function isShorts(url) {
         });
 
         console.log(`✅ 送信成功（${platform}）: ${result.title}`);
-        await page.waitForTimeout(1000); // 🔁 スプレッドシート反映の余裕
+        await page.waitForTimeout(1000); // 👈 応答待ち（GASの反映安定化）
       }
 
     } catch (e) {
