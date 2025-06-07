@@ -5,9 +5,20 @@ const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fet
 puppeteer.use(StealthPlugin());
 
 const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbw4IURfCME6jK2y3EghD9FLNhoAx25RtOaUzCyjBuwTbMiEz9PNpABjjApVOSmFjZ_9/exec";
+const EXISTING_URLS_API = WEBHOOK_URL; // GETで既存URL一覧取得（doGet）
 const TIKTOK_USER = "nogizaka46_official";
 
 (async () => {
+  // ✅ 既存URL一覧をGAS経由で取得
+  let existingUrls = [];
+  try {
+    const res = await fetch(EXISTING_URLS_API);
+    existingUrls = await res.json();
+    console.log("📄 既存URL数:", existingUrls.length);
+  } catch (e) {
+    console.warn("⚠️ 既存URL取得失敗:", e.message);
+  }
+
   const browser = await puppeteer.launch({
     headless: true,
     args: ['--no-sandbox']
@@ -38,14 +49,9 @@ const TIKTOK_USER = "nogizaka46_official";
 
     if (!videoElements) throw new Error("❌ 投稿が見つかりませんでした");
 
-    // ✅ 既存URLリスト（今は手動。将来的にはAPIやGAS経由で取得可能）
-    const existingUrls = [
-      "https://www.tiktok.com/@nogizaka46_official/video/7512743355852295431"
-      // 今後はGASのGET API等から取得に拡張可
-    ];
-
+    // ✅ 重複チェック
     if (existingUrls.includes(videoElements.videoUrl)) {
-      console.log("✅ 既存の動画です。スキップします。");
+      console.log("⏭️ 重複動画をスキップ:", videoElements.videoUrl);
       await browser.close();
       return;
     }
