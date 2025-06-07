@@ -12,13 +12,11 @@ const YOUTUBE_CHANNELS = [
   "https://www.youtube.com/@KYOUPOKE"
 ];
 
-// ✅ URLからvideo IDを抽出
 function extractVideoId(url) {
   const match = url?.match(/[?&]v=([\w-]{11})|\/shorts\/([\w-]{11})|\/watch\?v=([\w-]{11})/);
   return match ? (match[1] || match[2] || match[3]) : null;
 }
 
-// ✅ Shortsかどうかを判定
 function isShorts(url) {
   return url.includes("/shorts/");
 }
@@ -51,7 +49,7 @@ function isShorts(url) {
       const video = await page.evaluate(() => {
         const anchor = document.querySelector('a#video-title');
         const href = anchor?.href;
-        const title = anchor?.title || anchor?.textContent?.trim();
+        const title = anchor?.getAttribute("title") || anchor?.textContent?.trim();
         return href ? { videoUrl: href, title: title || "(タイトル不明)" } : null;
       });
 
@@ -71,7 +69,7 @@ function isShorts(url) {
       const data = {
         publishedDate,
         platform,
-        channel: channelUrl.split("/").pop(),
+        channel: channelUrl.split("/").pop().replace(/^@/, ""),
         title: video.title,
         videoUrl: normalizedUrl
       };
