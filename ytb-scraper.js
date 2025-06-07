@@ -27,9 +27,7 @@ function isShorts(url) {
   try {
     const res = await fetch(EXISTING_URLS_API);
     const urls = await res.json();
-    existingVideoIds = urls
-      .map(url => extractVideoId((url || "").toString().trim()))
-      .filter(Boolean);
+    existingVideoIds = urls.map(url => extractVideoId((url || "").toString().trim())).filter(Boolean);
     console.log("📄 既存動画ID数:", existingVideoIds.length);
   } catch (e) {
     console.warn("⚠️ 既存URL取得失敗:", e.message);
@@ -41,33 +39,28 @@ function isShorts(url) {
 
   for (const channelUrl of YOUTUBE_CHANNELS) {
     console.log(`🚀 チェック開始: ${channelUrl}`);
+
     try {
       await page.goto(`${channelUrl}/videos`, { waitUntil: "networkidle2", timeout: 0 });
       await page.waitForTimeout(3000);
 
-      // ✅ 1件目の動画URLのみ取得
-      const videoUrl = await page.evaluate(() => {
-        const a = document.querySelector('a[href^="/watch"]');
-        return a ? "https://www.youtube.com" + a.getAttribute("href") : null;
+      const result = await page.evaluate(() => {
+        const item = document.querySelector("ytd-rich-item-renderer");
+        const anchor = item?.querySelector('a#video-title-link');
+        const href = anchor?.href;
+        const title = anchor?.textContent?.trim();
+        return href && title ? { videoUrl: href, title } : null;
       });
 
-      if (!videoUrl) throw new Error("❌ 動画が見つかりませんでした");
+      if (!result) throw new Error("❌ 投稿が見つかりませんでした");
 
-      const normalizedUrl = videoUrl.trim();
+      const normalizedUrl = result.videoUrl.trim();
       const videoId = extractVideoId(normalizedUrl);
+
       if (!videoId || existingVideoIds.includes(videoId)) {
         console.log(`⏭️ 重複スキップ: ${videoId}`);
         continue;
       }
-
-      // ✅ 詳細ページに遷移し、正確なタイトルを取得
-      await page.goto(normalizedUrl, { waitUntil: "networkidle2", timeout: 0 });
-      await page.waitForTimeout(3000);
-
-      const title = await page.evaluate(() => {
-        const el = document.querySelector('h1.title yt-formatted-string');
-        return el?.innerText || "(タイトル不明)";
-      });
 
       const publishedDate = new Date().toISOString().split("T")[0];
       const platform = isShorts(normalizedUrl) ? "YouTube Shorts" : "YouTube";
@@ -76,7 +69,7 @@ function isShorts(url) {
         publishedDate,
         platform,
         channel: channelUrl.split("/").pop(),
-        title,
+        title: result.title,
         videoUrl: normalizedUrl
       };
 
@@ -86,7 +79,7 @@ function isShorts(url) {
         headers: { "Content-Type": "application/json" }
       });
 
-      console.log(`✅ 送信成功（${platform}）: ${title}`);
+      console.log(`✅ 送信成功（${platform}）: ${result.title}`);
     } catch (e) {
       console.error(`❌ 処理失敗（${channelUrl}）:`, e.message);
     }
