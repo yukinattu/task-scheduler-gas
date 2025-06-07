@@ -8,15 +8,17 @@ const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45d
 const EXISTING_URLS_API = WEBHOOK_URL;
 
 const YOUTUBE_CHANNELS = [
-  "https://www.youtube.com/@soshina",
-  "https://www.youtube.com/@KYOUPOKE"
+  "https://www.youtube.com/@soshina",      // 粗品
+  "https://www.youtube.com/@KYOUPOKE"      // 今日ポケ
 ];
 
+// ✅ URLからvideo IDを抽出
 function extractVideoId(url) {
   const match = url?.match(/[?&]v=([\w-]{11})|\/shorts\/([\w-]{11})|\/watch\?v=([\w-]{11})/);
   return match ? (match[1] || match[2] || match[3]) : null;
 }
 
+// ✅ URLから Shorts 判定
 function isShorts(url) {
   return url.includes("/shorts/");
 }
@@ -28,7 +30,7 @@ function isShorts(url) {
     const res = await fetch(EXISTING_URLS_API);
     const urls = await res.json();
     existingVideoIds = urls
-      .map(url => extractVideoId((url || "").toString().trim()))
+      .map(url => extractVideoId(url?.toString().trim()))
       .filter(Boolean);
     console.log("📄 既存動画ID数:", existingVideoIds.length);
   } catch (e) {
@@ -40,26 +42,28 @@ function isShorts(url) {
   await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/114.0.0.0 Safari/537.36");
 
   for (const channelUrl of YOUTUBE_CHANNELS) {
-    console.log(`🚀 チェック開始: ${channelUrl}`);
+    console.log(🚀 チェック開始: ${channelUrl});
 
     try {
-      await page.goto(`${channelUrl}/videos`, { waitUntil: "networkidle2", timeout: 0 });
+      await page.goto(${channelUrl}/videos, { waitUntil: "networkidle2", timeout: 0 });
       await page.waitForTimeout(3000);
 
-      const video = await page.evaluate(() => {
-        const anchors = Array.from(document.querySelectorAll('ytd-grid-video-renderer a#thumbnail'));
-        const first = anchors.find(a => a?.href?.includes('/watch'));
-        const title = first?.parentElement?.parentElement?.querySelector("#video-title")?.textContent?.trim();
-        return first ? { videoUrl: first.href, title: title || "(タイトル不明)" } : null;
+      const result = await page.evaluate(() => {
+        const a = document.querySelector('a[href*="/watch"]');
+        return a ? {
+          videoUrl: a.href,
+          title: a.textContent.trim() || "(タイトル不明)"
+        } : null;
       });
 
-      if (!video) throw new Error("❌ 投稿が見つかりませんでした");
+      if (!result) throw new Error("❌ 投稿が見つかりませんでした");
 
-      const normalizedUrl = video.videoUrl.trim();
+      const normalizedUrl = result.videoUrl.trim();
       const videoId = extractVideoId(normalizedUrl);
 
-      if (!videoId || existingVideoIds.includes(videoId)) {
-        console.log(`⏭️ 重複スキップ: ${videoId}`);
+      if (!videoId) throw new Error("❌ 動画ID抽出失敗");
+      if (existingVideoIds.includes(videoId)) {
+        console.log(⏭️ 重複スキップ: ${videoId});
         continue;
       }
 
@@ -70,19 +74,19 @@ function isShorts(url) {
         publishedDate,
         platform,
         channel: channelUrl.split("/").pop(),
-        title: video.title,
+        title: result.title,
         videoUrl: normalizedUrl
       };
 
-      const res = await fetch(WEBHOOK_URL, {
+      const postRes = await fetch(WEBHOOK_URL, {
         method: "POST",
         body: JSON.stringify(data),
         headers: { "Content-Type": "application/json" }
       });
 
-      console.log(`✅ 送信成功（${platform}）: ${video.title}`);
+      console.log(✅ 送信成功（${platform}）: ${result.title});
     } catch (e) {
-      console.error(`❌ 処理失敗（${channelUrl}）:`, e.message);
+      console.error(❌ 処理失敗（${channelUrl}）:, e.message);
     }
   }
 
