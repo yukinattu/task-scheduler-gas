@@ -1,6 +1,6 @@
 const puppeteer = require("puppeteer-extra");
 const StealthPlugin = require("puppeteer-extra-plugin-stealth");
-const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 
 puppeteer.use(StealthPlugin());
 
@@ -8,7 +8,11 @@ const WEBHOOK_URL = "https://script.google.com/macros/s/1Up9RPWZuyz8CXqRhidQhd6b
 const TIKTOK_USER = "nogizaka46_official";
 
 (async () => {
-  const browser = await puppeteer.launch({ headless: true });
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ['--no-sandbox']  // ← sandbox回避オプションを追加
+  });
+
   const page = await browser.newPage();
 
   await page.setUserAgent(
