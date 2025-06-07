@@ -1,4 +1,4 @@
-name: Run TikTok Scraper Every 10 Minutes
+name: Run Scrapers Every 10 Minutes
 
 on:
   schedule:
@@ -10,12 +10,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 20
+
       - name: Install dependencies
         run: npm install
-      - name: Run scraper
+
+      - name: Run TikTok scraper
         run: node task-scheduler-gas.js
 
+      - name: Run YouTube scraper
+        run: node ytb-scraper.js
