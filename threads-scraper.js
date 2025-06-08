@@ -6,87 +6,75 @@ puppeteer.use(StealthPlugin());
 
 const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45dHT2zfE6k8GjaskiT9CpaqEGEvmPtHsJrgrS7cQx5gw1qvd8/exec";
 const EXISTING_URLS_API = WEBHOOK_URL;
+const THREADS_USERS = ["a_n_o2mass", "sayaka_okada", "seina0227"];
 
-const TIKTOK_USERS = [
-  "nogizaka46_official",
-  "kurumin0726",
-  "anovamos",
-  "minami.0819",
-  "ibu.x.u"
-];
-
-// ▶️ 動画URLから video ID を抽出
-function extractVideoId(url) {
-  const match = url?.match(/\/video\/(\d+)/);
+// ▶️ Threads投稿IDを抽出（19桁ID想定）
+function extractPostId(url) {
+  const match = url?.match(/\/(\d{19})$/);
   return match ? match[1] : null;
 }
 
 (async () => {
-  let existingVideoIds = [];
+  let existingPostIds = [];
 
-  // ✅ GASから既存URL一覧を取得し、videoIdへ変換
   try {
     const res = await fetch(EXISTING_URLS_API);
     const urls = await res.json();
-    existingVideoIds = urls
-      .map(url => extractVideoId((url || "").toString().trim().replace(/\/+$/, "")))
+    existingPostIds = urls
+      .map(url => extractPostId((url || "").toString().trim().replace(/\/+$/, "")))
       .filter(Boolean);
-    console.log("📄 既存動画ID数:", existingVideoIds.length);
+    console.log("📄 既存投稿ID数:", existingPostIds.length);
   } catch (e) {
     console.warn("⚠️ 既存URL取得失敗:", e.message);
   }
 
   const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
   const page = await browser.newPage();
+  await page.setUserAgent(
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/114.0.0.0 Safari/537.36"
+  );
 
-  await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/114.0.0.0 Safari/537.36");
-
-  for (const TIKTOK_USER of TIKTOK_USERS) {
-    const profileUrl = https://www.tiktok.com/@${TIKTOK_USER};
-    console.log(🚀 チェック開始: ${TIKTOK_USER});
+  for (const user of THREADS_USERS) {
+    const profileUrl = https://www.threads.net/@${user};
+    console.log(🚀 チェック開始: ${user});
 
     try {
       await page.goto(profileUrl, { waitUntil: "networkidle2", timeout: 0 });
-      // 🔄 複数回スクロール（動画読み込み促進）
-      for (let i = 0; i < 3; i++) {
-        await page.evaluate(() => window.scrollBy(0, 1000));
-        await page.waitForTimeout(1000);
-      }
+      await page.waitForTimeout(4000);
 
-      // 🔍 最初の動画リンクを探す
-      const videoUrl = await page.evaluate(() => {
-        const anchors = Array.from(document.querySelectorAll("a[href*='/video/']"));
-        const firstValid = anchors.find(a => a.href.includes("/video/"));
-        return firstValid ? firstValid.href : null;
+      // ▶️ 投稿URL抽出（19桁ID入りリンク）
+      const postUrl = await page.evaluate(() => {
+        const anchors = Array.from(document.querySelectorAll("a"));
+        const valid = anchors.map(a => a.href).find(h => /\/\d{19}$/.test(h));
+        return valid || null;
       });
 
-      if (!videoUrl) throw new Error("❌ 投稿が見つかりませんでした");
+      if (!postUrl) throw new Error("❌ 投稿が見つかりませんでした");
 
-      const normalizedUrl = videoUrl.trim().replace(/\/+$/, "");
-      const videoId = extractVideoId(normalizedUrl);
+      const normalizedUrl = postUrl.trim().replace(/\/+$/, "");
+      const postId = extractPostId(normalizedUrl);
 
-      if (!videoId) throw new Error("❌ 動画IDの抽出に失敗");
-      if (existingVideoIds.includes(videoId)) {
-        console.log(⏭️ 重複スキップ: ${videoId});
+      if (!postId) throw new Error("❌ 投稿ID抽出失敗");
+      if (existingPostIds.includes(postId)) {
+        console.log(⏭️ 重複スキップ: ${postId});
         continue;
       }
 
-      // ▶️ タイトル取得（fallback含む）
       await page.goto(normalizedUrl, { waitUntil: "networkidle2", timeout: 0 });
-      await page.waitForTimeout(3000);
+      await page.waitForTimeout(2000);
 
       const title = await page.evaluate(() => {
-        const desc = document.querySelector('[data-e2e="browse-video-desc"]')?.innerText;
-        const fallback = document.querySelector("title")?.innerText;
-        return desc || fallback || "(タイトル不明)";
+        const ogTitle = document.querySelector("meta[property='og:title']");
+        const desc = document.querySelector("meta[name='description']");
+        const h1 = document.querySelector("h1");
+        return ogTitle?.content || desc?.content || h1?.innerText || "(タイトル不明)";
       });
 
       const publishedDate = new Date().toISOString().split("T")[0];
-
       const data = {
         publishedDate,
-        platform: "TikTok",
-        channel: TIKTOK_USER,
+        platform: "Threads",
+        channel: user,
         title,
         videoUrl: normalizedUrl
       };
@@ -97,9 +85,9 @@ function extractVideoId(url) {
         headers: { "Content-Type": "application/json" }
       });
 
-      console.log(✅ 送信成功（${TIKTOK_USER}）:, await postRes.text());
+      console.log(✅ 送信成功（${user}）:, await postRes.text());
     } catch (e) {
-      console.error(❌ 処理失敗（${TIKTOK_USER}）:, e.message);
+      console.error(❌ 処理失敗（${user}）:, e.message);
     }
   }
 
