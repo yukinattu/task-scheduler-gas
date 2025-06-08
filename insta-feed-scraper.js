@@ -1,42 +1,43 @@
+const puppeteer = require("puppeteer-extra");
+const StealthPlugin = require("puppeteer-extra-plugin-stealth");
+const fetch = (...args) => import("node-fetch").then(({ default: fetch }) => fetch(...args));
+puppeteer.use(StealthPlugin());
+
+const WEBHOOK_URL = "https://script.google.com/macros/s/XXXXXXXXXXXX/exec";
+const USERS = ["nogizaka46_official", "a_n_o2mass", "yasu.ryu9chakra", "takato_fs"];
+
 function extractPostId(url) {
   const match = url?.match(/\/p\/([\w-]+)/);
   return match ? match[1] : null;
 }
 
 (async () => {
+  const res = await fetch(WEBHOOK_URL);
+  const urls = await res.json();
+  const existingIds = urls.map(u => extractPostId(u)).filter(Boolean);
+
   const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
   const page = await browser.newPage();
-  await page.setUserAgent(USER_AGENT);
+  await page.setUserAgent("Mozilla/5.0 ... Chrome/114 Safari/537.36");
 
-  let existingIds = [];
-  try {
-    const res = await fetch(EXISTING_URLS_API);
-    const urls = await res.json();
-    existingIds = urls.map(u => extractPostId((u || "").trim())).filter(Boolean);
-  } catch (e) {
-    console.warn("⚠️ Feed URL取得失敗:", e.message);
-  }
-
-  for (const user of INSTAGRAM_USERS) {
+  for (const user of USERS) {
     try {
-      await page.goto(`https://www.instagram.com/${user}/`, { waitUntil: "networkidle2", timeout: 0 });
-      await page.waitForSelector("a[href^='/p/']", { timeout: 10000 });
+      const profile = `https://www.instagram.com/${user}/`;
+      await page.goto(profile, { waitUntil: "domcontentloaded", timeout: 60000 });
+      await page.waitForTimeout(3000);
+      const postUrl = await page.evaluate(() => {
+        const a = document.querySelector("a[href^='/p/']");
+        return a ? "https://www.instagram.com" + a.getAttribute("href") : null;
+      });
 
-      const postUrl = await page.evaluate(() =>
-        [...document.querySelectorAll("a[href^='/p/']")][0]?.href || null
-      );
+      if (!postUrl) throw new Error("投稿なし");
+      const postId = extractPostId(postUrl);
+      if (!postId || existingIds.includes(postId)) continue;
 
-      if (!postUrl) throw new Error("❌ 投稿が見つかりませんでした");
-      const id = extractPostId(postUrl);
-      if (!id || existingIds.includes(id)) continue;
-
-      await page.goto(postUrl, { waitUntil: "networkidle2", timeout: 0 });
-      await page.waitForTimeout(2000);
-
+      await page.goto(postUrl, { waitUntil: "domcontentloaded", timeout: 60000 });
+      await page.waitForTimeout(3000);
       const title = await page.evaluate(() =>
-        document.querySelector("meta[property='og:title']")?.content ||
-        document.querySelector("meta[property='og:description']")?.content ||
-        "(タイトル不明)"
+        document.querySelector("meta[property='og:title']")?.content || document.title
       );
 
       await fetch(WEBHOOK_URL, {
@@ -51,9 +52,9 @@ function extractPostId(url) {
         })
       });
 
-      console.log(`✅ Feed送信成功: ${user}`);
+      console.log(`✅ Feed送信: ${user}`);
     } catch (e) {
-      console.error(`❌ Feed失敗(${user}):`, e.message);
+      console.error(`❌ Feed失敗: ${user}`, e.message);
     }
   }
 
