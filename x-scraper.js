@@ -6,7 +6,7 @@ puppeteer.use(StealthPlugin());
 
 const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45dHT2zfE6k8GjaskiT9CpaqEGEvmPtHsJrgrS7cQx5gw1qvd8/exec";
 const EXISTING_URLS_API = WEBHOOK_URL;
-const X_USERS = ["aNo2mass", "miyu_honda1", "nogizaka46"];
+const X_USERS = ["aNo2mass", "miyu_honda1", "nogizaka46", "ABEMA", "annkw5tyb", "hirox246"];
 
 // ▶️ 投稿URLから19桁のTweet IDを抽出
 function extractPostId(url) {
