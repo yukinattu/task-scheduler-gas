@@ -9,7 +9,11 @@ const EXISTING_URLS_API = WEBHOOK_URL;
 
 const YOUTUBE_CHANNELS = [
   "https://www.youtube.com/@soshina",
-  "https://www.youtube.com/@KYOUPOKE"
+  "https://www.youtube.com/@KYOUPOKE",
+  "https://www.youtube.com/@shimofuritube",
+  "https://www.youtube.com/@seiya_inimini",
+  "https://www.youtube.com/@prime_ABEMA",
+  "https://www.youtube.com/@RIPSLYME-w",
 ];
 
 function extractVideoId(url) {
