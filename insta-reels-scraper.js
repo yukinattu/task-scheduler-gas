@@ -8,7 +8,6 @@ const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45d
 const EXISTING_URLS_API = WEBHOOK_URL;
 const INSTAGRAM_USERS = ["nogizaka46_official", "yasu.ryu9chakra"];
 
-// ✅ URLからvideo ID抽出（reel ID）
 function extractVideoId(url) {
   const match = url?.match(/\/reel\/([\w-]+)/);
   return match ? match[1] : null;
@@ -37,15 +36,23 @@ function extractVideoId(url) {
     console.log(`🚀 チェック開始: ${user}`);
 
     try {
-      await page.goto(profileUrl, { waitUntil: "networkidle2", timeout: 0 });
-      await page.waitForTimeout(5000);
-      await page.evaluate(() => window.scrollBy(0, 1000));
-      await page.waitForTimeout(2000);
+      await page.goto(profileUrl, { waitUntil: "domcontentloaded", timeout: 0 });
 
-      const videoUrl = await page.evaluate(() => {
-        const anchors = Array.from(document.querySelectorAll("a[href*='/reel/']"));
-        return anchors.length > 0 ? anchors[0].href : null;
-      });
+      let videoUrl = null;
+
+      // 最大3回スクロールしてリールリンクを探索
+      for (let i = 0; i < 3; i++) {
+        await page.waitForTimeout(2000);
+        await page.evaluate(() => window.scrollBy(0, 1000));
+        await page.waitForTimeout(1000);
+
+        videoUrl = await page.evaluate(() => {
+          const anchors = Array.from(document.querySelectorAll("a[href*='/reel/']"));
+          return anchors.length > 0 ? anchors[0].href : null;
+        });
+
+        if (videoUrl) break;
+      }
 
       if (!videoUrl) throw new Error("❌ リールが見つかりませんでした");
 
@@ -58,12 +65,13 @@ function extractVideoId(url) {
         continue;
       }
 
-      await page.goto(normalizedUrl, { waitUntil: "networkidle2", timeout: 0 });
+      await page.goto(normalizedUrl, { waitUntil: "domcontentloaded", timeout: 0 });
       await page.waitForTimeout(3000);
 
       const title = await page.evaluate(() => {
-        const meta = document.querySelector("meta[property='og:title']");
-        return meta?.content || "(タイトル不明)";
+        const ogTitle = document.querySelector("meta[property='og:title']");
+        const ogDesc = document.querySelector("meta[property='og:description']");
+        return ogTitle?.content || ogDesc?.content || "(タイトル不明)";
       });
 
       const publishedDate = new Date().toISOString().split("T")[0];
