@@ -8,7 +8,7 @@ const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45d
 const EXISTING_URLS_API = WEBHOOK_URL;
 const X_USERS = ["aNo2mass", "miyu_honda1", "nogizaka46"];
 
-// ▶️ 投稿URLから19桁のtweet IDを抽出
+// ▶️ 投稿URLから19桁のTweet IDを抽出
 function extractPostId(url) {
   const match = url?.match(/\/status\/(\d{19})/);
   return match ? match[1] : null;
@@ -42,10 +42,9 @@ function extractPostId(url) {
 
       // ▶️ 投稿リンクを抽出（/status/19桁ID）
       const postUrl = await page.evaluate(() => {
-        const anchor = Array.from(document.querySelectorAll("a"))
-          .map(a => a.href)
-          .find(h => /\/status\/\d{19}/.test(h));
-        return anchor || null;
+        const anchors = Array.from(document.querySelectorAll("a"));
+        const valid = anchors.map(a => a.href).find(h => /\/status\/\d{19}/.test(h));
+        return valid || null;
       });
 
       if (!postUrl) throw new Error("❌ 投稿が見つかりませんでした");
@@ -59,12 +58,14 @@ function extractPostId(url) {
         continue;
       }
 
+      // ▶️ 投稿詳細ページへ遷移
       await page.goto(normalizedUrl, { waitUntil: "domcontentloaded", timeout: 0 });
       await page.waitForTimeout(3000);
 
+      // ▶️ 本文の1行目をタイトルとして抽出
       const title = await page.evaluate(() => {
-        const meta = document.querySelector("meta[property='og:description']");
-        return meta?.content || "(タイトル不明)";
+        const tweetText = document.querySelector('div[data-testid="tweetText"]');
+        return tweetText?.innerText?.split("\n")[0]?.trim() || "(本文不明)";
       });
 
       const publishedDate = new Date().toISOString().split("T")[0];
