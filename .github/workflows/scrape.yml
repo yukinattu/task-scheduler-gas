@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  tiktok:
+  tt2:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -16,8 +16,34 @@ jobs:
           node-version: 20
       - name: Install dependencies
         run: npm install
-      - name: Run TikTok scraper
-        run: node task-scheduler-gas.js
+      - name: Run tt2 scraper
+        run: node tt2.js
+
+  tt3:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm install
+      - name: Run tt3 scraper
+        run: node tt3.js
+
+  tt4:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm install
+      - name: Run tt4 scraper
+        run: node tt4.js
 
   youtube:
     runs-on: ubuntu-latest
