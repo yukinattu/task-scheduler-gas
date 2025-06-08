@@ -54,7 +54,7 @@ function extractVideoId(url) {
       await page.goto(profileUrl, { waitUntil: "networkidle2", timeout: 0 });
       await page.waitForTimeout(5000);
 
-      // ✅ puzzle画面を検出（複数手法で判定）
+      // ✅ puzzle画面を検出（複数条件で判定）
       const isPuzzle = await page.evaluate(() => {
         return (
           document.body.innerText.includes("Verify to continue") ||
@@ -65,18 +65,20 @@ function extractVideoId(url) {
 
       const title = await page.title();
       if (isPuzzle || title.toLowerCase().includes("tiktok") === false) {
-        await page.screenshot({ path: `puzzle_${TIKTOK_USER}.png` });
+        const screenshotPath = `puzzle_${TIKTOK_USER}.png`;
+        await page.screenshot({ path: screenshotPath });
+        console.log(`📸 puzzle画面を検出・保存: ${screenshotPath}`);
         throw new Error("🚧 Bot検知によりpuzzle画面に遷移しました");
       }
 
-      // ✅ 遅延読み込みの動画を確実に表示させるため複数回スクロール
+      // ✅ 遅延読み込み対応スクロール
       for (let i = 0; i < 3; i++) {
         await page.evaluate(() => window.scrollBy(0, 1000));
         await page.waitForTimeout(2000);
       }
 
+      // ✅ 投稿リンクを取得
       await page.waitForSelector("a[href*='/video/']", { timeout: 10000 });
-
       const videoUrls = await page.evaluate(() => {
         return Array.from(document.querySelectorAll("a[href*='/video/']"))
           .map(a => a.href)
@@ -87,14 +89,14 @@ function extractVideoId(url) {
 
       const normalizedUrl = videoUrls[0].trim().replace(/\/+$/, "");
       const videoId = extractVideoId(normalizedUrl);
-
       if (!videoId) throw new Error("❌ 動画IDの抽出に失敗");
+
       if (existingVideoIds.includes(videoId)) {
         console.log(`⏭️ 重複スキップ: ${videoId}`);
-        await page.close();
-        continue;
+        continue; // ❌ page.close() は finally に任せる
       }
 
+      // ✅ タイトル取得のために動画ページへ遷移
       await page.goto(normalizedUrl, { waitUntil: "networkidle2", timeout: 0 });
       await page.waitForTimeout(3000);
 
@@ -122,7 +124,11 @@ function extractVideoId(url) {
     } catch (e) {
       console.error(`❌ 処理失敗（${TIKTOK_USER}）:`, e.message);
     } finally {
-      await page.close();
+      try {
+        if (!page.isClosed()) await page.close(); // ✅ 2重close回避
+      } catch (err) {
+        console.warn(`⚠️ page.close() エラー: ${err.message}`);
+      }
     }
   }
 
