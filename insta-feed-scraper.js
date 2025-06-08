@@ -8,7 +8,6 @@ const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45d
 const EXISTING_URLS_API = WEBHOOK_URL;
 const INSTAGRAM_USERS = ["nogizaka46_official", "a_n_o2mass", "yasu.ryu9chakra"];
 
-// ▶️ 投稿URLからID抽出（投稿ID）
 function extractPostId(url) {
   const match = url?.match(/\/p\/([\w-]+)/);
   return match ? match[1] : null;
@@ -28,9 +27,15 @@ function extractPostId(url) {
     console.warn("⚠️ 既存URL取得失敗:", e.message);
   }
 
-  const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ["--no-sandbox"]
+  });
+
   const page = await browser.newPage();
-  await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/114.0.0.0 Safari/537.36");
+  await page.setUserAgent(
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/114.0.0.0 Safari/537.36"
+  );
 
   for (const user of INSTAGRAM_USERS) {
     const profileUrl = `https://www.instagram.com/${user}/`;
@@ -41,9 +46,13 @@ function extractPostId(url) {
       await page.goto(profileUrl, { waitUntil: "domcontentloaded", timeout: 0 });
       await page.waitForTimeout(5000);
 
+      // スクロールして投稿を強制表示（必要に応じて複数回可能）
+      await page.evaluate(() => window.scrollBy(0, 1500));
+      await page.waitForTimeout(2000);
+
       const postUrl = await page.evaluate(() => {
-        const anchor = document.querySelector("article a[href*='/p/']");
-        return anchor ? anchor.href : null;
+        const anchors = Array.from(document.querySelectorAll("a[href^='/p/']"));
+        return anchors.length > 0 ? "https://www.instagram.com" + anchors[0].getAttribute("href") : null;
       });
 
       if (!postUrl) throw new Error("❌ 投稿が見つかりませんでした");
@@ -61,8 +70,9 @@ function extractPostId(url) {
       await page.waitForTimeout(3000);
 
       const title = await page.evaluate(() => {
-        const meta = document.querySelector("meta[property='og:title']");
-        return meta?.content || "(タイトル不明)";
+        const ogTitle = document.querySelector("meta[property='og:title']");
+        const ogDesc = document.querySelector("meta[property='og:description']");
+        return ogTitle?.content || ogDesc?.content || "(タイトル不明)";
       });
 
       const publishedDate = new Date().toISOString().split("T")[0];
