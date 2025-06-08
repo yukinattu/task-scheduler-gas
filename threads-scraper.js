@@ -8,9 +8,8 @@ const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45d
 const EXISTING_URLS_API = WEBHOOK_URL;
 const THREADS_USERS = ["a_n_o2mass", "sayaka_okada", "seina0227"];
 
-// ▶️ Threads投稿IDを抽出（19桁ID想定）
 function extractPostId(url) {
-  const match = url?.match(/\/(\d{19})$/);
+  const match = url?.match(/\/(\d{10,20})$/);  // ← 10〜20桁に緩和
   return match ? match[1] : null;
 }
 
@@ -30,9 +29,7 @@ function extractPostId(url) {
 
   const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
   const page = await browser.newPage();
-  await page.setUserAgent(
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/114.0.0.0 Safari/537.36"
-  );
+  await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/114.0.0.0 Safari/537.36");
 
   for (const user of THREADS_USERS) {
     const profileUrl = `https://www.threads.net/@${user}`;
@@ -42,10 +39,10 @@ function extractPostId(url) {
       await page.goto(profileUrl, { waitUntil: "networkidle2", timeout: 0 });
       await page.waitForTimeout(4000);
 
-      // ▶️ 投稿URL抽出（19桁ID入りリンク）
+      // 🔍 投稿URLを抽出（aタグの中からThreads投稿IDを含むもの）
       const postUrl = await page.evaluate(() => {
         const anchors = Array.from(document.querySelectorAll("a"));
-        const valid = anchors.map(a => a.href).find(h => /\/\d{19}$/.test(h));
+        const valid = anchors.map(a => a.href).find(h => /\/\d{10,20}$/.test(h));
         return valid || null;
       });
 
@@ -60,7 +57,9 @@ function extractPostId(url) {
         continue;
       }
 
+      // 投稿ページに遷移してタイトルを取得
       await page.goto(normalizedUrl, { waitUntil: "networkidle2", timeout: 0 });
+      await page.waitForSelector("article", { timeout: 5000 }).catch(() => {});  // 安定性UP
       await page.waitForTimeout(2000);
 
       const title = await page.evaluate(() => {
