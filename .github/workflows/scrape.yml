@@ -53,3 +53,19 @@ jobs:
 
       - name: Run Instagram Reels scraper
         run: node insta-reels-scraper.js
+
+  instagram-feed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run Instagram Feed scraper
+        run: node insta-feed-scraper.js
