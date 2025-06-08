@@ -7,7 +7,7 @@ from datetime import datetime
 WEBHOOK_URL = "https://script.google.com/macros/s/XXXXX/exec"
 
 # チェック対象のInstagramユーザー
-INSTAGRAM_USERS = ["a_n_o2mass", "nogizaka46_official"]
+INSTAGRAM_USERS = ["a_n_o2mass", "nogizaka46_official", "yasu.ryu9chakra", "takato_fs"]
 
 # 保存済みのURLリスト（ローカルファイル運用）
 EXISTING_IDS_FILE = "existing_story_ids.txt"
