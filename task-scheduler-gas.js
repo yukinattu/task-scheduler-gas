@@ -1,105 +1,66 @@
-const puppeteer = require("puppeteer-extra");
-const StealthPlugin = require("puppeteer-extra-plugin-stealth");
-const fetch = (...args) => import("node-fetch").then(({ default: fetch }) => fetch(...args));
+const TIKTOK_USERS = ["nogizaka46_official", "kurumin0726", "anovamos", "minami.0819", "ibu.x.u"];
 
-puppeteer.use(StealthPlugin());
-
-const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45dHT2zfE6k8GjaskiT9CpaqEGEvmPtHsJrgrS7cQx5gw1qvd8/exec";
-const EXISTING_URLS_API = WEBHOOK_URL;
-
-const TIKTOK_USERS = [
-  "nogizaka46_official",
-  "kurumin0726",
-  "anovamos",
-  "minami.0819",
-  "ibu.x.u"
-];
-
-// ▶️ 動画URLから video ID を抽出
 function extractVideoId(url) {
   const match = url?.match(/\/video\/(\d+)/);
   return match ? match[1] : null;
 }
 
 (async () => {
-  let existingVideoIds = [];
+  const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
+  const page = await browser.newPage();
+  await page.setUserAgent(USER_AGENT);
 
-  // ✅ GASから既存URL一覧を取得し、videoIdへ変換
+  let existingVideoIds = [];
   try {
     const res = await fetch(EXISTING_URLS_API);
     const urls = await res.json();
-    existingVideoIds = urls
-      .map(url => extractVideoId((url || "").toString().trim().replace(/\/+$/, "")))
-      .filter(Boolean);
-    console.log("📄 既存動画ID数:", existingVideoIds.length);
+    existingVideoIds = urls.map(u => extractVideoId((u || "").trim())).filter(Boolean);
   } catch (e) {
     console.warn("⚠️ 既存URL取得失敗:", e.message);
   }
 
-  const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
-  const page = await browser.newPage();
-
-  await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/114.0.0.0 Safari/537.36");
-
-  for (const TIKTOK_USER of TIKTOK_USERS) {
-    const profileUrl = `https://www.tiktok.com/@${TIKTOK_USER}`;
-    console.log(`🚀 チェック開始: ${TIKTOK_USER}`);
-
+  for (const user of TIKTOK_USERS) {
     try {
-      await page.goto(profileUrl, { waitUntil: "networkidle2", timeout: 0 });
-      // 🔄 複数回スクロール（動画読み込み促進）
+      const profile = `https://www.tiktok.com/@${user}`;
+      await page.goto(profile, { waitUntil: "networkidle2", timeout: 0 });
+      await page.waitForTimeout(3000);
+
       for (let i = 0; i < 3; i++) {
         await page.evaluate(() => window.scrollBy(0, 1000));
         await page.waitForTimeout(1000);
       }
 
-      // 🔍 最初の動画リンクを探す
       const videoUrl = await page.evaluate(() => {
-        const anchors = Array.from(document.querySelectorAll("a[href*='/video/']"));
-        const firstValid = anchors.find(a => a.href.includes("/video/"));
-        return firstValid ? firstValid.href : null;
+        const anchors = [...document.querySelectorAll("a[href*='/video/']")];
+        return anchors.length ? anchors[0].href : null;
       });
 
-      if (!videoUrl) throw new Error("❌ 投稿が見つかりませんでした");
+      if (!videoUrl) throw new Error("❌ 動画が見つかりませんでした");
+      const id = extractVideoId(videoUrl);
+      if (!id || existingVideoIds.includes(id)) continue;
 
-      const normalizedUrl = videoUrl.trim().replace(/\/+$/, "");
-      const videoId = extractVideoId(normalizedUrl);
+      await page.goto(videoUrl, { waitUntil: "networkidle2", timeout: 0 });
+      await page.waitForTimeout(2000);
 
-      if (!videoId) throw new Error("❌ 動画IDの抽出に失敗");
-      if (existingVideoIds.includes(videoId)) {
-        console.log(`⏭️ 重複スキップ: ${videoId}`);
-        continue;
-      }
+      const title = await page.evaluate(() =>
+        document.querySelector('[data-e2e="browse-video-desc"]')?.innerText || document.title || "(タイトル不明)"
+      );
 
-      // ▶️ タイトル取得（fallback含む）
-      await page.goto(normalizedUrl, { waitUntil: "networkidle2", timeout: 0 });
-      await page.waitForTimeout(3000);
-
-      const title = await page.evaluate(() => {
-        const desc = document.querySelector('[data-e2e="browse-video-desc"]')?.innerText;
-        const fallback = document.querySelector("title")?.innerText;
-        return desc || fallback || "(タイトル不明)";
-      });
-
-      const publishedDate = new Date().toISOString().split("T")[0];
-
-      const data = {
-        publishedDate,
-        platform: "TikTok",
-        channel: TIKTOK_USER,
-        title,
-        videoUrl: normalizedUrl
-      };
-
-      const postRes = await fetch(WEBHOOK_URL, {
+      await fetch(WEBHOOK_URL, {
         method: "POST",
-        body: JSON.stringify(data),
-        headers: { "Content-Type": "application/json" }
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          publishedDate: new Date().toISOString().split("T")[0],
+          platform: "TikTok",
+          channel: user,
+          title,
+          videoUrl
+        })
       });
 
-      console.log(`✅ 送信成功（${TIKTOK_USER}）:`, await postRes.text());
+      console.log(`✅ TikTok送信成功: ${user}`);
     } catch (e) {
-      console.error(`❌ 処理失敗（${TIKTOK_USER}）:`, e.message);
+      console.error(`❌ TikTok処理失敗(${user}):`, e.message);
     }
   }
 
