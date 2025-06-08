@@ -8,9 +8,9 @@ puppeteer.use(StealthPlugin());
 const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45dHT2zfE6k8GjaskiT9CpaqEGEvmPtHsJrgrS7cQx5gw1qvd8/exec";
 const EXISTING_URLS_API = WEBHOOK_URL;
 const TIKTOK_USERS = [
-  "nogizaka46_official",
-  "kurumin0726",
   "anovamos",
+  "kurumin0726",
+  "nogizaka46_official",
   "minami.0819",
   "ibu.x.u"
 ];
