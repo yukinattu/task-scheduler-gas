@@ -36,23 +36,21 @@ function extractVideoId(url) {
     console.log(`🚀 チェック開始: ${user}`);
 
     try {
-      await page.goto(profileUrl, { waitUntil: "domcontentloaded", timeout: 0 });
+      await page.goto(profileUrl, { waitUntil: "networkidle2", timeout: 0 });
 
-      let videoUrl = null;
+      // 明示的にリール要素の表示を待つ（最大15秒）
+      await page.waitForSelector("a[href*='/reel/']", { timeout: 15000 });
 
-      // 最大3回スクロールしてリールリンクを探索
-      for (let i = 0; i < 3; i++) {
-        await page.waitForTimeout(2000);
-        await page.evaluate(() => window.scrollBy(0, 1000));
-        await page.waitForTimeout(1000);
-
-        videoUrl = await page.evaluate(() => {
-          const anchors = Array.from(document.querySelectorAll("a[href*='/reel/']"));
-          return anchors.length > 0 ? anchors[0].href : null;
-        });
-
-        if (videoUrl) break;
+      // ⏬ スクロール複数回（読み込みを促進）
+      for (let i = 0; i < 6; i++) {
+        await page.evaluate(() => window.scrollBy(0, 1500));
+        await page.waitForTimeout(1500);
       }
+
+      const videoUrl = await page.evaluate(() => {
+        const anchors = Array.from(document.querySelectorAll("a[href*='/reel/']"));
+        return anchors.length > 0 ? anchors[0].href : null;
+      });
 
       if (!videoUrl) throw new Error("❌ リールが見つかりませんでした");
 
@@ -65,7 +63,7 @@ function extractVideoId(url) {
         continue;
       }
 
-      await page.goto(normalizedUrl, { waitUntil: "domcontentloaded", timeout: 0 });
+      await page.goto(normalizedUrl, { waitUntil: "networkidle2", timeout: 0 });
       await page.waitForTimeout(3000);
 
       const title = await page.evaluate(() => {
