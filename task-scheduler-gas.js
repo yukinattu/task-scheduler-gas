@@ -48,8 +48,8 @@ function extractVideoId(url) {
   );
 
   for (const TIKTOK_USER of TIKTOK_USERS) {
-    const profileUrl = https://www.tiktok.com/@${TIKTOK_USER};
-    console.log(🚀 チェック開始: ${TIKTOK_USER});
+    const profileUrl = `https://www.tiktok.com/@${TIKTOK_USER}`;
+    console.log(`🚀 チェック開始: ${TIKTOK_USER}`);
 
     try {
       await page.goto(profileUrl, { waitUntil: "networkidle2", timeout: 0 });
@@ -69,7 +69,7 @@ function extractVideoId(url) {
 
       if (!videoId) throw new Error("❌ 動画IDの抽出に失敗");
       if (existingVideoIds.includes(videoId)) {
-        console.log(⏭️ 重複スキップ: ${videoId});
+        console.log(`⏭️ 重複スキップ: ${videoId}`);
         continue;
       }
 
@@ -97,9 +97,9 @@ function extractVideoId(url) {
         headers: { "Content-Type": "application/json" }
       });
 
-      console.log(✅ 送信成功（${TIKTOK_USER}）:, await postRes.text());
+      console.log(`✅ 送信成功（${TIKTOK_USER}）:`, await postRes.text());
     } catch (e) {
-      console.error(❌ 処理失敗（${TIKTOK_USER}）:, e.message);
+      console.error(`❌ 処理失敗（${TIKTOK_USER}）:`, e.message);
     }
   }
 
