@@ -14,7 +14,6 @@ const TIKTOK_USERS = [
   "ibu.x.u"
 ];
 
-
 // ▶️ 動画URLから video ID を抽出
 function extractVideoId(url) {
   const match = url?.match(/\/video\/(\d+)/);
@@ -57,14 +56,16 @@ function extractVideoId(url) {
       await page.evaluate(() => window.scrollBy(0, 1000));
       await page.waitForTimeout(2000);
 
-      const videoUrl = await page.evaluate(() => {
-        const anchor = document.querySelector("a[href*='/video/']");
-        return anchor ? anchor.href : null;
+      // ✅ 投稿リンクを複数取得して最初の1件を使用
+      const videoUrls = await page.evaluate(() => {
+        return Array.from(document.querySelectorAll("a[href*='/video/']"))
+          .map(a => a.href)
+          .filter((v, i, self) => self.indexOf(v) === i); // 重複排除
       });
 
-      if (!videoUrl) throw new Error("❌ 投稿が見つかりませんでした");
+      if (!videoUrls.length) throw new Error("❌ 投稿が見つかりませんでした");
 
-      const normalizedUrl = videoUrl.trim().replace(/\/+$/, "");
+      const normalizedUrl = videoUrls[0].trim().replace(/\/+$/, "");
       const videoId = extractVideoId(normalizedUrl);
 
       if (!videoId) throw new Error("❌ 動画IDの抽出に失敗");
