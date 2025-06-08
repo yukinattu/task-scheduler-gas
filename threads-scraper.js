@@ -6,11 +6,10 @@ puppeteer.use(StealthPlugin());
 
 const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45dHT2zfE6k8GjaskiT9CpaqEGEvmPtHsJrgrS7cQx5gw1qvd8/exec";
 const EXISTING_URLS_API = WEBHOOK_URL;
-const THREADS_USERS = ["a_n_o2mass", "sayaka_okada", "seina0227"];
+const THREADS_USERS = ["a_n_o2mass", "sayaka_okada"];
 
-// ▶️ Threads投稿IDを抽出（19桁ID想定）
 function extractPostId(url) {
-  const match = url?.match(/\/(\d{19})$/);
+  const match = url?.match(/\/([\w-]+)$/);
   return match ? match[1] : null;
 }
 
@@ -30,23 +29,19 @@ function extractPostId(url) {
 
   const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
   const page = await browser.newPage();
-  await page.setUserAgent(
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/114.0.0.0 Safari/537.36"
-  );
+  await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/114.0.0.0 Safari/537.36");
 
   for (const user of THREADS_USERS) {
-    const profileUrl = https://www.threads.net/@${user};
-    console.log(🚀 チェック開始: ${user});
+    const profileUrl = `https://www.threads.net/@${user}`;
+    console.log(`🚀 チェック開始: ${user}`);
 
     try {
       await page.goto(profileUrl, { waitUntil: "networkidle2", timeout: 0 });
-      await page.waitForTimeout(4000);
+      await page.waitForTimeout(5000);
 
-      // ▶️ 投稿URL抽出（19桁ID入りリンク）
       const postUrl = await page.evaluate(() => {
-        const anchors = Array.from(document.querySelectorAll("a"));
-        const valid = anchors.map(a => a.href).find(h => /\/\d{19}$/.test(h));
-        return valid || null;
+        const anchor = document.querySelector("a[href*='/@']")?.href;
+        return anchor || null;
       });
 
       if (!postUrl) throw new Error("❌ 投稿が見つかりませんでした");
@@ -56,18 +51,16 @@ function extractPostId(url) {
 
       if (!postId) throw new Error("❌ 投稿ID抽出失敗");
       if (existingPostIds.includes(postId)) {
-        console.log(⏭️ 重複スキップ: ${postId});
+        console.log(`⏭️ 重複スキップ: ${postId}`);
         continue;
       }
 
       await page.goto(normalizedUrl, { waitUntil: "networkidle2", timeout: 0 });
-      await page.waitForTimeout(2000);
+      await page.waitForTimeout(3000);
 
       const title = await page.evaluate(() => {
-        const ogTitle = document.querySelector("meta[property='og:title']");
-        const desc = document.querySelector("meta[name='description']");
-        const h1 = document.querySelector("h1");
-        return ogTitle?.content || desc?.content || h1?.innerText || "(タイトル不明)";
+        const meta = document.querySelector("meta[property='og:title']") || document.querySelector("meta[name='description']");
+        return meta?.content || "(タイトル不明)";
       });
 
       const publishedDate = new Date().toISOString().split("T")[0];
@@ -85,9 +78,9 @@ function extractPostId(url) {
         headers: { "Content-Type": "application/json" }
       });
 
-      console.log(✅ 送信成功（${user}）:, await postRes.text());
+      console.log(`✅ 送信成功（${user}）:`, await postRes.text());
     } catch (e) {
-      console.error(❌ 処理失敗（${user}）:, e.message);
+      console.error(`❌ 処理失敗（${user}）:`, e.message);
     }
   }
 
