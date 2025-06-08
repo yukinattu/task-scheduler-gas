@@ -1,45 +1,44 @@
-const THREADS_USERS = ["a_n_o2mass", "sayaka_okada", "seina0227"];
+const puppeteer = require("puppeteer-extra");
+const StealthPlugin = require("puppeteer-extra-plugin-stealth");
+const fetch = (...args) => import("node-fetch").then(({ default: fetch }) => fetch(...args));
+puppeteer.use(StealthPlugin());
 
-function extractThreadsId(url) {
-  const match = url?.match(/\/post\/(\d+)/);
+const WEBHOOK_URL = "https://script.google.com/macros/s/XXXXXXXXXXXX/exec";
+const USERS = ["a_n_o2mass", "sayaka_okada", "seina0227"];
+
+function extractPostId(url) {
+  const match = url?.match(/\/(\d{19})$/);
   return match ? match[1] : null;
 }
 
 (async () => {
+  const res = await fetch(WEBHOOK_URL);
+  const urls = await res.json();
+  const existingIds = urls.map(u => extractPostId(u)).filter(Boolean);
+
   const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
   const page = await browser.newPage();
-  await page.setUserAgent(USER_AGENT);
+  await page.setUserAgent("Mozilla/5.0 ... Chrome/114 Safari/537.36");
 
-  let existingIds = [];
-  try {
-    const res = await fetch(EXISTING_URLS_API);
-    const urls = await res.json();
-    existingIds = urls.map(u => extractThreadsId((u || "").trim())).filter(Boolean);
-  } catch (e) {
-    console.warn("⚠️ Threads URL取得失敗:", e.message);
-  }
-
-  for (const user of THREADS_USERS) {
+  for (const user of USERS) {
     try {
-      const profile = `https://www.threads.net/@${user}`;
-      await page.goto(profile, { waitUntil: "networkidle2", timeout: 0 });
-      await page.waitForTimeout(3000);
+      const profileUrl = `https://www.threads.net/@${user}`;
+      await page.goto(profileUrl, { waitUntil: "networkidle2", timeout: 60000 });
+      await page.waitForTimeout(4000);
 
-      const postUrl = await page.evaluate(() =>
-        [...document.querySelectorAll("a[href*='/post/']")].find(a => a.href.includes("/post/"))?.href || null
-      );
+      const postUrl = await page.evaluate(() => {
+        const anchors = Array.from(document.querySelectorAll("a[href*='/']"));
+        return anchors.map(a => a.href).find(h => /\d{19}$/.test(h)) || null;
+      });
 
-      if (!postUrl) throw new Error("❌ 投稿が見つかりませんでした");
-      const id = extractThreadsId(postUrl);
-      if (!id || existingIds.includes(id)) continue;
+      if (!postUrl) throw new Error("投稿が見つかりませんでした");
+      const postId = extractPostId(postUrl);
+      if (!postId || existingIds.includes(postId)) continue;
 
-      await page.goto(postUrl, { waitUntil: "networkidle2", timeout: 0 });
+      await page.goto(postUrl, { waitUntil: "domcontentloaded", timeout: 60000 });
       await page.waitForTimeout(2000);
-
       const title = await page.evaluate(() =>
-        document.querySelector("meta[property='og:title']")?.content ||
-        document.querySelector("meta[property='og:description']")?.content ||
-        "(タイトル不明)"
+        document.querySelector("meta[property='og:title']")?.content || document.title
       );
 
       await fetch(WEBHOOK_URL, {
@@ -54,9 +53,9 @@ function extractThreadsId(url) {
         })
       });
 
-      console.log(`✅ Threads送信成功: ${user}`);
+      console.log(`✅ Threads送信: ${user}`);
     } catch (e) {
-      console.error(`❌ Threads失敗(${user}):`, e.message);
+      console.error(`❌ Threads失敗: ${user}`, e.message);
     }
   }
 
