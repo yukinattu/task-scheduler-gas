@@ -6,7 +6,7 @@ puppeteer.use(StealthPlugin());
 
 const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45dHT2zfE6k8GjaskiT9CpaqEGEvmPtHsJrgrS7cQx5gw1qvd8/exec";
 const EXISTING_URLS_API = WEBHOOK_URL;
-const INSTAGRAM_USERS = ["nogizaka46_official", "a_n_o2mass", "yasu.ryu9chakra", "takato_fs"];
+const INSTAGRAM_USERS = ["nogizaka46_official", "yasu.ryu9chakra"];
 
 function extractVideoId(url) {
   const match = url?.match(/\/reel\/([\w-]+)/);
@@ -32,8 +32,8 @@ function extractVideoId(url) {
   await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/114.0.0.0 Safari/537.36");
 
   for (const user of INSTAGRAM_USERS) {
-    const profileUrl = https://www.instagram.com/${user}/reels/;
-    console.log(🚀 チェック開始: ${user});
+    const profileUrl = `https://www.instagram.com/${user}/reels/`;
+    console.log(`🚀 チェック開始: ${user}`);
 
     try {
       await page.goto(profileUrl, { waitUntil: "networkidle2", timeout: 0 });
@@ -59,7 +59,7 @@ function extractVideoId(url) {
 
       if (!videoId) throw new Error("❌ 動画ID抽出失敗");
       if (existingVideoIds.includes(videoId)) {
-        console.log(⏭️ 重複スキップ: ${videoId});
+        console.log(`⏭️ 重複スキップ: ${videoId}`);
         continue;
       }
 
@@ -88,9 +88,9 @@ function extractVideoId(url) {
         headers: { "Content-Type": "application/json" }
       });
 
-      console.log(✅ 送信成功（${user}）:, await postRes.text());
+      console.log(`✅ 送信成功（${user}）:`, await postRes.text());
     } catch (e) {
-      console.error(❌ 処理失敗（${user}）:, e.message);
+      console.error(`❌ 処理失敗（${user}）:`, e.message);
     }
   }
 
