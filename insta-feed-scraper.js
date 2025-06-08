@@ -1,10 +1,12 @@
 const puppeteer = require("puppeteer-extra");
 const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 const fetch = (...args) => import("node-fetch").then(({ default: fetch }) => fetch(...args));
+
 puppeteer.use(StealthPlugin());
 
-const WEBHOOK_URL = "https://script.google.com/macros/s/XXXXXXXXXXXX/exec";
-const USERS = ["nogizaka46_official", "a_n_o2mass", "yasu.ryu9chakra", "takato_fs"];
+const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45dHT2zfE6k8GjaskiT9CpaqEGEvmPtHsJrgrS7cQx5gw1qvd8/exec";
+const EXISTING_URLS_API = WEBHOOK_URL;
+const INSTAGRAM_USERS = ["nogizaka46_official", "a_n_o2mass", "yasu.ryu9chakra", "takato_fs"];
 
 function extractPostId(url) {
   const match = url?.match(/\/p\/([\w-]+)/);
@@ -12,49 +14,86 @@ function extractPostId(url) {
 }
 
 (async () => {
-  const res = await fetch(WEBHOOK_URL);
-  const urls = await res.json();
-  const existingIds = urls.map(u => extractPostId(u)).filter(Boolean);
+  let existingPostIds = [];
 
-  const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
+  try {
+    const res = await fetch(EXISTING_URLS_API);
+    const urls = await res.json();
+    existingPostIds = urls
+      .map(url => extractPostId((url || "").toString().trim().replace(/\/+$/, "")))
+      .filter(Boolean);
+    console.log("📄 既存投稿ID数:", existingPostIds.length);
+  } catch (e) {
+    console.warn("⚠️ 既存URL取得失敗:", e.message);
+  }
+
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ["--no-sandbox"]
+  });
+
   const page = await browser.newPage();
-  await page.setUserAgent("Mozilla/5.0 ... Chrome/114 Safari/537.36");
+  await page.setUserAgent(
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/114.0.0.0 Safari/537.36"
+  );
 
-  for (const user of USERS) {
+  for (const user of INSTAGRAM_USERS) {
+    const profileUrl = https://www.instagram.com/${user}/;
+
+    console.log(🚀 チェック開始: ${user});
+
     try {
-      const profile = `https://www.instagram.com/${user}/`;
-      await page.goto(profile, { waitUntil: "domcontentloaded", timeout: 60000 });
-      await page.waitForTimeout(3000);
+      await page.goto(profileUrl, { waitUntil: "domcontentloaded", timeout: 0 });
+      await page.waitForTimeout(5000);
+
+      // スクロールして投稿を強制表示（必要に応じて複数回可能）
+      await page.evaluate(() => window.scrollBy(0, 1500));
+      await page.waitForTimeout(2000);
+
       const postUrl = await page.evaluate(() => {
-        const a = document.querySelector("a[href^='/p/']");
-        return a ? "https://www.instagram.com" + a.getAttribute("href") : null;
+        const anchors = Array.from(document.querySelectorAll("a[href^='/p/']"));
+        return anchors.length > 0 ? "https://www.instagram.com" + anchors[0].getAttribute("href") : null;
       });
 
-      if (!postUrl) throw new Error("投稿なし");
-      const postId = extractPostId(postUrl);
-      if (!postId || existingIds.includes(postId)) continue;
+      if (!postUrl) throw new Error("❌ 投稿が見つかりませんでした");
 
-      await page.goto(postUrl, { waitUntil: "domcontentloaded", timeout: 60000 });
+      const normalizedUrl = postUrl.trim().replace(/\/+$/, "");
+      const postId = extractPostId(normalizedUrl);
+
+      if (!postId) throw new Error("❌ 投稿ID抽出失敗");
+      if (existingPostIds.includes(postId)) {
+        console.log(⏭️ 重複スキップ: ${postId});
+        continue;
+      }
+
+      await page.goto(normalizedUrl, { waitUntil: "domcontentloaded", timeout: 0 });
       await page.waitForTimeout(3000);
-      const title = await page.evaluate(() =>
-        document.querySelector("meta[property='og:title']")?.content || document.title
-      );
 
-      await fetch(WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          publishedDate: new Date().toISOString().split("T")[0],
-          platform: "Instagram Feed",
-          channel: user,
-          title,
-          videoUrl: postUrl
-        })
+      const title = await page.evaluate(() => {
+        const ogTitle = document.querySelector("meta[property='og:title']");
+        const ogDesc = document.querySelector("meta[property='og:description']");
+        return ogTitle?.content || ogDesc?.content || "(タイトル不明)";
       });
 
-      console.log(`✅ Feed送信: ${user}`);
+      const publishedDate = new Date().toISOString().split("T")[0];
+
+      const data = {
+        publishedDate,
+        platform: "Instagram Feed",
+        channel: user,
+        title,
+        videoUrl: normalizedUrl
+      };
+
+      const postRes = await fetch(WEBHOOK_URL, {
+        method: "POST",
+        body: JSON.stringify(data),
+        headers: { "Content-Type": "application/json" }
+      });
+
+      console.log(✅ 送信成功（${user}）:, await postRes.text());
     } catch (e) {
-      console.error(`❌ Feed失敗: ${user}`, e.message);
+      console.error(❌ 処理失敗（${user}）:, e.message);
     }
   }
 
