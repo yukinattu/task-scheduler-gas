@@ -6,6 +6,7 @@ puppeteer.use(StealthPlugin());
 
 const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45dHT2zfE6k8GjaskiT9CpaqEGEvmPtHsJrgrS7cQx5gw1qvd8/exec";
 const EXISTING_URLS_API = WEBHOOK_URL;
+
 const TIKTOK_USERS = [
   "nogizaka46_official",
   "kurumin0726",
@@ -13,7 +14,6 @@ const TIKTOK_USERS = [
   "minami.0819",
   "ibu.x.u"
 ];
-
 
 // ▶️ 動画URLから video ID を抽出
 function extractVideoId(url) {
@@ -24,7 +24,7 @@ function extractVideoId(url) {
 (async () => {
   let existingVideoIds = [];
 
-  // ✅ GASから既存URL一覧を取得し、videoIdへ変換・正規化
+  // ✅ GASから既存URL一覧を取得し、videoIdへ変換
   try {
     const res = await fetch(EXISTING_URLS_API);
     const urls = await res.json();
@@ -36,16 +36,10 @@ function extractVideoId(url) {
     console.warn("⚠️ 既存URL取得失敗:", e.message);
   }
 
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ["--no-sandbox"]
-  });
-
+  const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
   const page = await browser.newPage();
 
-  await page.setUserAgent(
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/114.0.0.0 Safari/537.36"
-  );
+  await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/114.0.0.0 Safari/537.36");
 
   for (const TIKTOK_USER of TIKTOK_USERS) {
     const profileUrl = `https://www.tiktok.com/@${TIKTOK_USER}`;
@@ -53,13 +47,17 @@ function extractVideoId(url) {
 
     try {
       await page.goto(profileUrl, { waitUntil: "networkidle2", timeout: 0 });
-      await page.waitForTimeout(5000);
-      await page.evaluate(() => window.scrollBy(0, 1000));
-      await page.waitForTimeout(2000);
+      // 🔄 複数回スクロール（動画読み込み促進）
+      for (let i = 0; i < 3; i++) {
+        await page.evaluate(() => window.scrollBy(0, 1000));
+        await page.waitForTimeout(1000);
+      }
 
+      // 🔍 最初の動画リンクを探す
       const videoUrl = await page.evaluate(() => {
-        const anchor = document.querySelector("a[href*='/video/']");
-        return anchor ? anchor.href : null;
+        const anchors = Array.from(document.querySelectorAll("a[href*='/video/']"));
+        const firstValid = anchors.find(a => a.href.includes("/video/"));
+        return firstValid ? firstValid.href : null;
       });
 
       if (!videoUrl) throw new Error("❌ 投稿が見つかりませんでした");
@@ -73,16 +71,18 @@ function extractVideoId(url) {
         continue;
       }
 
-      // ▶️ タイトル取得のため動画ページに遷移
+      // ▶️ タイトル取得（fallback含む）
       await page.goto(normalizedUrl, { waitUntil: "networkidle2", timeout: 0 });
       await page.waitForTimeout(3000);
 
       const title = await page.evaluate(() => {
-        const el = document.querySelector('[data-e2e="browse-video-desc"]');
-        return el?.innerText || "(タイトル不明)";
+        const desc = document.querySelector('[data-e2e="browse-video-desc"]')?.innerText;
+        const fallback = document.querySelector("title")?.innerText;
+        return desc || fallback || "(タイトル不明)";
       });
 
       const publishedDate = new Date().toISOString().split("T")[0];
+
       const data = {
         publishedDate,
         platform: "TikTok",
