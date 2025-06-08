@@ -1,4 +1,10 @@
-const TIKTOK_USERS = ["nogizaka46_official", "kurumin0726", "anovamos", "minami.0819", "ibu.x.u"];
+const puppeteer = require("puppeteer-extra");
+const StealthPlugin = require("puppeteer-extra-plugin-stealth");
+const fetch = (...args) => import("node-fetch").then(({ default: fetch }) => fetch(...args));
+puppeteer.use(StealthPlugin());
+
+const WEBHOOK_URL = "https://script.google.com/macros/s/XXXXXXXXXXXX/exec";
+const TIKTOK_USERS = ["nogizaka46_official", "kurumin0726", "anovamos", "ibu.x.u"];
 
 function extractVideoId(url) {
   const match = url?.match(/\/video\/(\d+)/);
@@ -6,61 +12,53 @@ function extractVideoId(url) {
 }
 
 (async () => {
+  const res = await fetch(WEBHOOK_URL);
+  const urls = await res.json();
+  const existingIds = urls.map(u => extractVideoId(u)).filter(Boolean);
+
   const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
   const page = await browser.newPage();
-  await page.setUserAgent(USER_AGENT);
-
-  let existingVideoIds = [];
-  try {
-    const res = await fetch(EXISTING_URLS_API);
-    const urls = await res.json();
-    existingVideoIds = urls.map(u => extractVideoId((u || "").trim())).filter(Boolean);
-  } catch (e) {
-    console.warn("⚠️ 既存URL取得失敗:", e.message);
-  }
+  await page.setUserAgent("Mozilla/5.0 ... Chrome/114 Safari/537.36");
 
   for (const user of TIKTOK_USERS) {
     try {
-      const profile = `https://www.tiktok.com/@${user}`;
-      await page.goto(profile, { waitUntil: "networkidle2", timeout: 0 });
+      const profileUrl = `https://www.tiktok.com/@${user}`;
+      await page.goto(profileUrl, { waitUntil: "networkidle2", timeout: 60000 });
       await page.waitForTimeout(3000);
-
-      for (let i = 0; i < 3; i++) {
-        await page.evaluate(() => window.scrollBy(0, 1000));
-        await page.waitForTimeout(1000);
-      }
+      await page.evaluate(() => window.scrollBy(0, 1000));
 
       const videoUrl = await page.evaluate(() => {
-        const anchors = [...document.querySelectorAll("a[href*='/video/']")];
-        return anchors.length ? anchors[0].href : null;
+        const a = document.querySelector("a[href*='/video/']");
+        return a?.href || null;
       });
 
-      if (!videoUrl) throw new Error("❌ 動画が見つかりませんでした");
-      const id = extractVideoId(videoUrl);
-      if (!id || existingVideoIds.includes(id)) continue;
+      if (!videoUrl) throw new Error("動画リンクなし");
+      const videoId = extractVideoId(videoUrl);
+      if (!videoId || existingIds.includes(videoId)) continue;
 
-      await page.goto(videoUrl, { waitUntil: "networkidle2", timeout: 0 });
-      await page.waitForTimeout(2000);
-
+      await page.goto(videoUrl, { waitUntil: "networkidle2", timeout: 60000 });
+      await page.waitForTimeout(3000);
       const title = await page.evaluate(() =>
-        document.querySelector('[data-e2e="browse-video-desc"]')?.innerText || document.title || "(タイトル不明)"
+        document.querySelector('[data-e2e="browse-video-desc"]')?.innerText || document.title
       );
+
+      const payload = {
+        publishedDate: new Date().toISOString().split("T")[0],
+        platform: "TikTok",
+        channel: user,
+        title,
+        videoUrl
+      };
 
       await fetch(WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          publishedDate: new Date().toISOString().split("T")[0],
-          platform: "TikTok",
-          channel: user,
-          title,
-          videoUrl
-        })
+        body: JSON.stringify(payload)
       });
 
-      console.log(`✅ TikTok送信成功: ${user}`);
+      console.log(`✅ TikTok送信: ${user}`);
     } catch (e) {
-      console.error(`❌ TikTok処理失敗(${user}):`, e.message);
+      console.error(`❌ TikTok失敗: ${user}`, e.message);
     }
   }
 
