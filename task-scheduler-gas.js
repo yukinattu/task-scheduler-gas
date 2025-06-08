@@ -36,27 +36,39 @@ function extractVideoId(url) {
   }
 
   const browser = await puppeteer.launch({
-    headless: true,
+    headless: "new", // ✅ 新しい headless モードでBot検知されにくく
     args: ["--no-sandbox"]
   });
 
-  const page = await browser.newPage();
-
-  await page.setUserAgent(
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/114.0.0.0 Safari/537.36"
-  );
-
   for (const TIKTOK_USER of TIKTOK_USERS) {
+    const page = await browser.newPage(); // ✅ 毎回新しいページでBot検知を回避
     const profileUrl = `https://www.tiktok.com/@${TIKTOK_USER}`;
     console.log(`🚀 チェック開始: ${TIKTOK_USER}`);
 
     try {
+      await page.setUserAgent(
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/" +
+        (Math.floor(Math.random() * 20) + 90) + ".0.0.0 Safari/537.36"
+      );
+
       await page.goto(profileUrl, { waitUntil: "networkidle2", timeout: 0 });
       await page.waitForTimeout(5000);
-      await page.evaluate(() => window.scrollBy(0, 1000));
-      await page.waitForTimeout(2000);
 
-      // ✅ 投稿リンクを複数取得して最初の1件を使用
+      // ✅ puzzle画面を検知してスキップ
+      const isPuzzle = await page.evaluate(() =>
+        !!document.querySelector("#captcha-container, div[data-e2e='captcha-page']")
+      );
+      if (isPuzzle) throw new Error("🚧 Bot検知によりpuzzle画面に遷移しました");
+
+      // ✅ 遅延読み込みの動画を確実に表示させるため複数回スクロール
+      for (let i = 0; i < 3; i++) {
+        await page.evaluate(() => window.scrollBy(0, 1000));
+        await page.waitForTimeout(2000);
+      }
+
+      // ✅ 要素が出てくるまで最大10秒間待機
+      await page.waitForSelector("a[href*='/video/']", { timeout: 10000 });
+
       const videoUrls = await page.evaluate(() => {
         return Array.from(document.querySelectorAll("a[href*='/video/']"))
           .map(a => a.href)
@@ -71,6 +83,7 @@ function extractVideoId(url) {
       if (!videoId) throw new Error("❌ 動画IDの抽出に失敗");
       if (existingVideoIds.includes(videoId)) {
         console.log(`⏭️ 重複スキップ: ${videoId}`);
+        await page.close();
         continue;
       }
 
@@ -101,6 +114,8 @@ function extractVideoId(url) {
       console.log(`✅ 送信成功（${TIKTOK_USER}）:`, await postRes.text());
     } catch (e) {
       console.error(`❌ 処理失敗（${TIKTOK_USER}）:`, e.message);
+    } finally {
+      await page.close(); // ✅ ページを閉じてメモリ節約
     }
   }
 
