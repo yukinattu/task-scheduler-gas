@@ -1,5 +1,6 @@
 const puppeteer = require("puppeteer-extra");
 const StealthPlugin = require("puppeteer-extra-plugin-stealth");
+const fs = require("fs");
 const fetch = (...args) => import("node-fetch").then(({ default: fetch }) => fetch(...args));
 
 puppeteer.use(StealthPlugin());
@@ -23,7 +24,6 @@ function extractVideoId(url) {
 (async () => {
   let existingVideoIds = [];
 
-  // ✅ GASから既存URL一覧を取得し、videoIdへ変換・正規化
   try {
     const res = await fetch(EXISTING_URLS_API);
     const urls = await res.json();
@@ -36,12 +36,12 @@ function extractVideoId(url) {
   }
 
   const browser = await puppeteer.launch({
-    headless: "new", // ✅ 新しい headless モードでBot検知されにくく
+    headless: "new",
     args: ["--no-sandbox"]
   });
 
   for (const TIKTOK_USER of TIKTOK_USERS) {
-    const page = await browser.newPage(); // ✅ 毎回新しいページでBot検知を回避
+    const page = await browser.newPage();
     const profileUrl = `https://www.tiktok.com/@${TIKTOK_USER}`;
     console.log(`🚀 チェック開始: ${TIKTOK_USER}`);
 
@@ -54,11 +54,20 @@ function extractVideoId(url) {
       await page.goto(profileUrl, { waitUntil: "networkidle2", timeout: 0 });
       await page.waitForTimeout(5000);
 
-      // ✅ puzzle画面を検知してスキップ
-      const isPuzzle = await page.evaluate(() =>
-        !!document.querySelector("#captcha-container, div[data-e2e='captcha-page']")
-      );
-      if (isPuzzle) throw new Error("🚧 Bot検知によりpuzzle画面に遷移しました");
+      // ✅ puzzle画面を検出（複数手法で判定）
+      const isPuzzle = await page.evaluate(() => {
+        return (
+          document.body.innerText.includes("Verify to continue") ||
+          !!document.querySelector("#captcha-container") ||
+          !!document.querySelector("div[data-e2e='captcha-page']")
+        );
+      });
+
+      const title = await page.title();
+      if (isPuzzle || title.toLowerCase().includes("tiktok") === false) {
+        await page.screenshot({ path: `puzzle_${TIKTOK_USER}.png` });
+        throw new Error("🚧 Bot検知によりpuzzle画面に遷移しました");
+      }
 
       // ✅ 遅延読み込みの動画を確実に表示させるため複数回スクロール
       for (let i = 0; i < 3; i++) {
@@ -66,13 +75,12 @@ function extractVideoId(url) {
         await page.waitForTimeout(2000);
       }
 
-      // ✅ 要素が出てくるまで最大10秒間待機
       await page.waitForSelector("a[href*='/video/']", { timeout: 10000 });
 
       const videoUrls = await page.evaluate(() => {
         return Array.from(document.querySelectorAll("a[href*='/video/']"))
           .map(a => a.href)
-          .filter((v, i, self) => self.indexOf(v) === i); // 重複排除
+          .filter((v, i, self) => self.indexOf(v) === i);
       });
 
       if (!videoUrls.length) throw new Error("❌ 投稿が見つかりませんでした");
@@ -87,11 +95,10 @@ function extractVideoId(url) {
         continue;
       }
 
-      // ▶️ タイトル取得のため動画ページに遷移
       await page.goto(normalizedUrl, { waitUntil: "networkidle2", timeout: 0 });
       await page.waitForTimeout(3000);
 
-      const title = await page.evaluate(() => {
+      const titleText = await page.evaluate(() => {
         const el = document.querySelector('[data-e2e="browse-video-desc"]');
         return el?.innerText || "(タイトル不明)";
       });
@@ -101,7 +108,7 @@ function extractVideoId(url) {
         publishedDate,
         platform: "TikTok",
         channel: TIKTOK_USER,
-        title,
+        title: titleText,
         videoUrl: normalizedUrl
       };
 
@@ -115,7 +122,7 @@ function extractVideoId(url) {
     } catch (e) {
       console.error(`❌ 処理失敗（${TIKTOK_USER}）:`, e.message);
     } finally {
-      await page.close(); // ✅ ページを閉じてメモリ節約
+      await page.close();
     }
   }
 
