@@ -10,29 +10,23 @@ import requests
 import re
 
 # ===== 設定 =====
-INSTAGRAM_USER = ""
+INSTAGRAM_USER = "jypetwice_japan"
 SESSIONID = "73295698085%3AGN9zs8UcGVCwu9%3A1%3AAYfILLFlkNkRGo0jasKQ3fmsbPOJyF10ISIFwQvMcg"
 WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45dHT2zfE6k8GjaskiT9CpaqEGEvmPtHsJrgrS7cQx5gw1qvd8/exec"
 # =================
 
 def get_story_urls_from_media(username):
     chrome_options = Options()
-    
-    # ✅ headlessを有効にしてGitHub Actions等でも動作可能に
     chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--window-size=1920,1080")
     chrome_options.add_argument("user-agent=Mozilla/5.0")
-    
-    # ✅ 一時ディレクトリを user-data-dir に指定（セッション競合防止）
-    temp_dir = tempfile.mkdtemp()
-    chrome_options.add_argument(f"--user-data-dir={temp_dir}")
+    chrome_options.add_argument(f"--user-data-dir={tempfile.mkdtemp()}")  # 競合防止
 
     seleniumwire_options = {'disable_encoding': True}
     driver = webdriver.Chrome(options=chrome_options, seleniumwire_options=seleniumwire_options)
 
-    # Instagramにセッションクッキーを注入
     driver.get("https://www.instagram.com/")
     driver.add_cookie({
         "name": "sessionid",
@@ -42,7 +36,6 @@ def get_story_urls_from_media(username):
         "secure": True
     })
 
-    # ストーリーページにアクセス
     story_url = f"https://www.instagram.com/stories/{username}/"
     driver.get(story_url)
 
@@ -58,23 +51,31 @@ def get_story_urls_from_media(username):
     except Exception:
         print("⚠️ ストーリーUIの表示に失敗しました")
 
-    print("⏳ .jpg/.mp4リクエストの受信を待機中（25秒）...")
-    time.sleep(25)
+    print("⏳ .jpg/.mp4リクエストの受信を待機中（40秒）...")
+    time.sleep(40)
 
-    # リクエストからstory_idを抽出してURL化
     story_urls = set()
+    debug_urls = []
+
     for request in driver.requests:
-        if request.response and "cdninstagram" in request.url and (
-            ".mp4" in request.url or ".jpg" in request.url or ".jpeg" in request.url
-        ):
-            matches = re.findall(r'/stories/[^/]+/(\d+)', request.url)
-            if not matches:
-                matches = re.findall(r'/(\d{15,})_', request.url)
-            for story_id in matches:
-                full_url = f"https://www.instagram.com/stories/{username}/{story_id}/"
-                story_urls.add(full_url)
+        if request.response:
+            url = request.url
+            if any(ext in url for ext in [".mp4", ".jpg", ".jpeg", ".webp", ".png"]):
+                debug_urls.append(url)
+                matches = re.findall(r'/stories/[^/]+/(\d+)', url)
+                if not matches:
+                    matches = re.findall(r'/(\d{15,})_', url)
+                for story_id in matches:
+                    full_url = f"https://www.instagram.com/stories/{username}/{story_id}/"
+                    story_urls.add(full_url)
 
     driver.quit()
+
+    # 🔎 デバッグ用出力
+    print("📦 抽出されたリクエストURLの例（最大5件）:")
+    for url in list(debug_urls)[:5]:
+        print(" -", url)
+
     return story_urls
 
 def post_to_webhook(story_urls):
