@@ -6,7 +6,7 @@ puppeteer.use(StealthPlugin());
 
 const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45dHT2zfE6k8GjaskiT9CpaqEGEvmPtHsJrgrS7cQx5gw1qvd8/exec";
 const EXISTING_URLS_API = WEBHOOK_URL;
-const INSTAGRAM_USER = "sayaka_okada";
+const INSTAGRAM_USER = "seina0227";
 
 const REELS_URL = `https://www.instagram.com/${INSTAGRAM_USER}/reels/`;
 const FEED_URL = `https://www.instagram.com/${INSTAGRAM_USER}/`;
@@ -18,7 +18,7 @@ const THREADS_SESSIONID = "75366315757%3AXcxInlloUX21b8%3A21%3AAYdMw-XT7XrZC5T6A
 
 function extractId(url, type) {
   if (type === "threads") {
-    const match = url.match(/\/[@][^/]+\/post\/([^/?]+)/);
+    const match = url.match(/\/@[^/]+\/post\/([^/?]+)/);
     return match ? match[1] : null;
   }
   const match = url?.match(type === 'reel' ? /\/reel\/([^/?]+)/ : /\/p\/([^/?]+)/);
@@ -124,15 +124,7 @@ async function scrapeThreads(page) {
 
     const postData = await page.evaluate(() => {
       const articles = document.querySelectorAll("article");
-      if (!articles.length) return null;
-
-      const firstArticle = articles[0];
-      const textDivs = Array.from(firstArticle.querySelectorAll("div[dir='auto']"));
-      const content = textDivs.map(div => div.innerText).join("\n").trim();
-
-      return {
-        content
-      };
+      return articles.length > 0;
     });
 
     if (!postData) {
@@ -144,9 +136,7 @@ async function scrapeThreads(page) {
     const data = {
       publishedDate,
       platform: "Threads",
-      channel: INSTAGRAM_USER,
-      title: postData.content.slice(0, 100),
-      videoUrl: THREADS_URL  // 固定URL
+      channel: INSTAGRAM_USER
     };
 
     const res = await fetch(WEBHOOK_URL, {
@@ -210,7 +200,7 @@ async function scrapeThreads(page) {
     await scrapeAndPost(page, REELS_URL, "reel", existingIds);
     await scrapeAndPost(page, FEED_URL, "p", existingIds);
     await checkAndPostStory(page);
-    await scrapeThreads(page);  // Threadsは重複チェックせず常に送信
+    await scrapeThreads(page);
 
   } catch (e) {
     console.error(`❌ 処理失敗:`, e.message);
