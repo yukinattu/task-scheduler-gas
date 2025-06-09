@@ -4,7 +4,7 @@ from datetime import datetime
 import re
 
 # ===== 設定 =====
-INSTAGRAM_USER = "nogizaka46_official"
+INSTAGRAM_USER = "akb48"
 SESSIONID = "73295698085%3AGN9zs8UcGVCwu9%3A1%3AAYfILLFlkNkRGo0jasKQ3fmsbPOJyF10ISIFwQvMcg"
 WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45dHT2zfE6k8GjaskiT9CpaqEGEvmPtHsJrgrS7cQx5gw1qvd8/exec"
 # =================
@@ -33,11 +33,10 @@ def parse_and_send(script_text):
     urls_video = re.findall(r'"video_url":"([^"]+)"', script_text)
     urls_image = re.findall(r'"display_url":"([^"]+)"', script_text)
 
-    # 重複排除・URLデコード
-    all_urls = set([
+    all_urls = set(
         url.replace("\\u0026", "&").replace("\\", "")
-        for url in (urls_video + urls_image)
-    ])
+        for url in urls_video + urls_image
+    )
 
     if not all_urls:
         print("📭 ストーリー動画/画像は見つかりませんでした。")
@@ -51,8 +50,11 @@ def parse_and_send(script_text):
             "title": "(タイトル不明・ストーリー)",
             "videoUrl": url
         }
-        res = requests.post(WEBHOOK_URL, json=payload)
-        print(f"✅ Story送信成功: {res.text}")
+        try:
+            res = requests.post(WEBHOOK_URL, json=payload)
+            print(f"✅ Story送信成功: {res.text}")
+        except Exception as e:
+            print(f"❌ Webhook送信失敗: {e}")
 
 if __name__ == "__main__":
     try:
