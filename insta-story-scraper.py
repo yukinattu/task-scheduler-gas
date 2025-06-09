@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 
 # ===== 設定（変更する場所） =====
-INSTAGRAM_USER = "a_n_o2mass"  # 対象アカウント
+INSTAGRAM_USER = "nogizaka46_official"  # 対象アカウントを変更
 SESSIONID = "7132102982%3ANXl2NyhzamYhN2%3A4%3AAYeRrUxljqU7hNVdgFTi4oHjmXPBH38fhVktY1Un5g"
 WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45dHT2zfE6k8GjaskiT9CpaqEGEvmPtHsJrgrS7cQx5gw1qvd8/exec"
 # ==============================
