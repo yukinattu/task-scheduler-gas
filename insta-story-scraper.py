@@ -1,3 +1,4 @@
+import tempfile
 from seleniumwire import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -9,23 +10,29 @@ import requests
 import re
 
 # ===== 設定 =====
-INSTAGRAM_USER = "niziu_info_official"
+INSTAGRAM_USER = "hinatazaka46tw"
 SESSIONID = "73295698085%3AGN9zs8UcGVCwu9%3A1%3AAYfILLFlkNkRGo0jasKQ3fmsbPOJyF10ISIFwQvMcg"
 WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45dHT2zfE6k8GjaskiT9CpaqEGEvmPtHsJrgrS7cQx5gw1qvd8/exec"
 # =================
 
 def get_story_urls_from_media(username):
     chrome_options = Options()
-    # ✅ GUI表示を有効に（headless無効）
-    # chrome_options.add_argument("--headless=new")
+    
+    # ✅ headlessを有効にしてGitHub Actions等でも動作可能に
+    chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--window-size=1920,1080")
     chrome_options.add_argument("user-agent=Mozilla/5.0")
+    
+    # ✅ 一時ディレクトリを user-data-dir に指定（セッション競合防止）
+    temp_dir = tempfile.mkdtemp()
+    chrome_options.add_argument(f"--user-data-dir={temp_dir}")
 
     seleniumwire_options = {'disable_encoding': True}
-
     driver = webdriver.Chrome(options=chrome_options, seleniumwire_options=seleniumwire_options)
+
+    # Instagramにセッションクッキーを注入
     driver.get("https://www.instagram.com/")
     driver.add_cookie({
         "name": "sessionid",
@@ -35,6 +42,7 @@ def get_story_urls_from_media(username):
         "secure": True
     })
 
+    # ストーリーページにアクセス
     story_url = f"https://www.instagram.com/stories/{username}/"
     driver.get(story_url)
 
@@ -53,12 +61,12 @@ def get_story_urls_from_media(username):
     print("⏳ .jpg/.mp4リクエストの受信を待機中（25秒）...")
     time.sleep(25)
 
+    # リクエストからstory_idを抽出してURL化
     story_urls = set()
     for request in driver.requests:
         if request.response and "cdninstagram" in request.url and (
             ".mp4" in request.url or ".jpg" in request.url or ".jpeg" in request.url
         ):
-            # story_id を抽出（2パターン試行）
             matches = re.findall(r'/stories/[^/]+/(\d+)', request.url)
             if not matches:
                 matches = re.findall(r'/(\d{15,})_', request.url)
