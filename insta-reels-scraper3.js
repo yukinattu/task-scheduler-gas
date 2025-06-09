@@ -14,7 +14,7 @@ const FEED_URL = `https://www.instagram.com/${INSTAGRAM_USER}/`;
 const STORY_URL = `https://www.instagram.com/stories/${INSTAGRAM_USER}/`;
 const THREADS_URL = `https://www.threads.net/@${INSTAGRAM_USER}`;
 
-const INSTAGRAM_SESSIONID = "YOUR_INSTAGRAM_SESSION_ID";
+const INSTAGRAM_SESSIONID = "72915069255%3Agu5n0Aa3JjIBGt%3A18%3AAYeKOboFGVe14a_U4iPNDyhDpppyU7TAii2Zh6PX0Q";
 
 function extractId(url, type) {
   const match = url?.match(type === 'reel' ? /\/reel\/([^/?]+)/ : /\/p\/([^/?]+)/);
