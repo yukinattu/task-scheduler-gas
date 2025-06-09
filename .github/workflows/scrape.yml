@@ -1,4 +1,4 @@
-name: Run Scrapers Every 60 Minutes
+name: Run Scrapers Every 10 Minutes
 
 on:
   schedule:
