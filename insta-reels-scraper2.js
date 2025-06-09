@@ -10,6 +10,7 @@ const EXISTING_URLS_API = WEBHOOK_URL;
 const INSTAGRAM_USER = "rip_slyme";
 const REELS_URL = `https://www.instagram.com/${INSTAGRAM_USER}/reels/`;
 const FEED_URL = `https://www.instagram.com/${INSTAGRAM_USER}/`;
+const STORY_URL = `https://www.instagram.com/stories/${INSTAGRAM_USER}/`;
 
 // milimori111 のセッションID
 const INSTAGRAM_SESSIONID = "73295698085%3ALu2YBiMIgHLOfG%3A8%3AAYfOlJxDa3gSGVlRcAVgdMDI3NEpkSp8TzL7ejqw0Q";
@@ -69,6 +70,40 @@ async function scrapeAndPost(page, url, type, existingIds) {
   console.log(`✅ 送信成功 (${type}):`, await postRes.text());
 }
 
+async function checkAndPostStory(page) {
+  try {
+    await page.goto(STORY_URL, { waitUntil: "networkidle2", timeout: 0 });
+    await page.waitForTimeout(5000);
+
+    const isUnavailable = await page.evaluate(() => {
+      return document.body.innerText.includes("This story is unavailable");
+    });
+
+    if (!isUnavailable) {
+      const publishedDate = new Date().toISOString().split("T")[0];
+      const data = {
+        publishedDate,
+        platform: "Instagram Story",
+        channel: INSTAGRAM_USER,
+        title: "",
+        videoUrl: ""
+      };
+
+      const res = await fetch(WEBHOOK_URL, {
+        method: "POST",
+        body: JSON.stringify(data),
+        headers: { "Content-Type": "application/json" }
+      });
+
+      console.log(`✅ Story 送信成功:`, await res.text());
+    } else {
+      console.log("⏭️ ストーリーは現在投稿されていません");
+    }
+  } catch (e) {
+    console.warn("⚠️ ストーリーチェック失敗:", e.message);
+  }
+}
+
 (async () => {
   let existingIds = [];
   try {
@@ -102,6 +137,8 @@ async function scrapeAndPost(page, url, type, existingIds) {
 
     await scrapeAndPost(page, REELS_URL, "reel", existingIds);
     await scrapeAndPost(page, FEED_URL, "p", existingIds);
+    await checkAndPostStory(page); // ← Story チェックも追加
+
   } catch (e) {
     console.error(`❌ 処理失敗:`, e.message);
   } finally {
