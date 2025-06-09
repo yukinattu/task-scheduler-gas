@@ -1,13 +1,12 @@
 const puppeteer = require("puppeteer-extra");
 const StealthPlugin = require("puppeteer-extra-plugin-stealth");
-const fs = require("fs");
 const fetch = (...args) => import("node-fetch").then(({ default: fetch }) => fetch(...args));
 
 puppeteer.use(StealthPlugin());
 
 const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45dHT2zfE6k8GjaskiT9CpaqEGEvmPtHsJrgrS7cQx5gw1qvd8/exec";
 const EXISTING_URLS_API = WEBHOOK_URL;
-const INSTAGRAM_USER = "moe_five";
+const INSTAGRAM_USER = "sayaka_okada";
 
 const REELS_URL = `https://www.instagram.com/${INSTAGRAM_USER}/reels/`;
 const FEED_URL = `https://www.instagram.com/${INSTAGRAM_USER}/`;
@@ -110,7 +109,7 @@ async function checkAndPostStory(page) {
   }
 }
 
-async function scrapeThreads(page, existingIds) {
+async function scrapeThreads(page) {
   try {
     await page.goto(THREADS_URL, { waitUntil: "networkidle2", timeout: 0 });
     await page.waitForTimeout(6000);
@@ -141,14 +140,13 @@ async function scrapeThreads(page, existingIds) {
       return;
     }
 
-    // 投稿があったら記録（videoUrlはアカウントURLに固定）
     const publishedDate = new Date().toISOString().split("T")[0];
     const data = {
       publishedDate,
       platform: "Threads",
       channel: INSTAGRAM_USER,
       title: postData.content.slice(0, 100),
-      videoUrl: `https://www.threads.net/@${INSTAGRAM_USER}`
+      videoUrl: THREADS_URL  // 固定URL
     };
 
     const res = await fetch(WEBHOOK_URL, {
@@ -212,7 +210,7 @@ async function scrapeThreads(page, existingIds) {
     await scrapeAndPost(page, REELS_URL, "reel", existingIds);
     await scrapeAndPost(page, FEED_URL, "p", existingIds);
     await checkAndPostStory(page);
-    await scrapeThreads(page, existingIds);
+    await scrapeThreads(page);  // Threadsは重複チェックせず常に送信
 
   } catch (e) {
     console.error(`❌ 処理失敗:`, e.message);
