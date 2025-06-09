@@ -84,4 +84,15 @@ jobs:
       - name: Run X scraper
         run: node x-scraper.js
 
-
+  insta-story-akb:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4
+      - name: Run Instagram Story scraper for AKB
+        run: python insta-story-scraper.py
