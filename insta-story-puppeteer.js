@@ -20,7 +20,7 @@ const puppeteer = require('puppeteer');
     secure: true
   });
 
-  const username = 'a_n_o2mass';
+  const username = '';
   const storyUrl = `https://www.instagram.com/stories/${username}/`;
 
   const storyRequests = [];
