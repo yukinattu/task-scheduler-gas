@@ -88,11 +88,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
+
       - name: Install dependencies
-        run: pip install requests beautifulsoup4
+        run: |
+          pip install selenium requests beautifulsoup4
+          sudo apt update
+          sudo apt install -y chromium-browser chromium-chromedriver
+          sudo ln -s /usr/lib/chromium-browser/chromedriver /usr/bin/chromedriver
+
       - name: Run Instagram Story scraper for AKB
+        env:
+          CHROME_BIN: /usr/bin/chromium-browser
         run: python insta-story-scraper.py
