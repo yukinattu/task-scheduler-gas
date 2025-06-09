@@ -1,53 +1,62 @@
-import instaloader
-from datetime import datetime
 import requests
+from bs4 import BeautifulSoup
+from datetime import datetime
 
-# 設定（ここは適宜変更）
+# ===== 設定（変更する場所） =====
 INSTAGRAM_USER = "a_n_o2mass"  # 対象アカウント
-SESSION_USERNAME = "milimori111"  # セッションファイル名（ログイン済み）
+SESSIONID = "7132102982%3ANXl2NyhzamYhN2%3A4%3AAYeRrUxljqU7hNVdgFTi4oHjmXPBH38fhVktY1Un5g"
 WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45dHT2zfE6k8GjaskiT9CpaqEGEvmPtHsJrgrS7cQx5gw1qvd8/exec"
+# ==============================
 
-# インスタンス生成
-L = instaloader.Instaloader()
+headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+    "Cookie": f"sessionid={SESSIONID};"
+}
 
-# セッションファイルからログイン状態をロード
-try:
-    L.load_session_from_file(SESSION_USERNAME)
-    print(f"✅ セッションファイル {SESSION_USERNAME} を読み込みました。")
-except Exception as e:
-    print(f"❌ セッション読み込み失敗: {e}")
-    exit(1)
+def get_story_html(username):
+    url = f"https://www.instagram.com/stories/{username}/"
+    res = requests.get(url, headers=headers)
+    if res.status_code != 200:
+        raise Exception(f"📛 Storyページ取得失敗: HTTP {res.status_code}")
+    return res.text
 
-# プロフィール取得
-try:
-    profile = instaloader.Profile.from_username(L.context, INSTAGRAM_USER)
-    print(f"👤 {INSTAGRAM_USER} のプロフィールを取得しました")
-except Exception as e:
-    print(f"❌ プロフィール取得失敗: {e}")
-    exit(1)
+def extract_story_urls(html):
+    soup = BeautifulSoup(html, "html.parser")
+    scripts = soup.find_all("script")
+    for script in scripts:
+        if 'video_versions' in script.text or 'display_url' in script.text:
+            return script.text
+    return ""
 
-# ストーリー取得（直近のもの）
-try:
-    stories = L.get_stories(userids=[profile.userid])
-    found = False
-    for story in stories:
-        for item in story.get_items():
-            story_url = item.url
-            taken_at = item.date_local.strftime("%Y-%m-%d")
-            title = item.caption or "(キャプションなし)"
+def parse_and_send(script_text):
+    # 動画URL抽出（最低限の正規表現マッチ）
+    import re
+    urls = re.findall(r'"video_url":"([^"]+)"', script_text)
+    urls = list(set([url.replace("\\u0026", "&").replace("\\", "") for url in urls]))
 
-            payload = {
-                "publishedDate": taken_at,
-                "platform": "Instagram Story",
-                "channel": INSTAGRAM_USER,
-                "title": title,
-                "videoUrl": story_url
-            }
+    if not urls:
+        print("📭 ストーリー動画は見つかりませんでした。")
+        return
 
-            res = requests.post(WEBHOOK_URL, json=payload)
-            print(f"✅ Story送信成功: {res.text}")
-            found = True
-    if not found:
-        print("📭 ストーリーは見つかりませんでした。")
-except Exception as e:
-    print(f"❌ ストーリー取得失敗: {e}")
+    for url in urls:
+        payload = {
+            "publishedDate": datetime.now().strftime("%Y-%m-%d"),
+            "platform": "Instagram Story",
+            "channel": INSTAGRAM_USER,
+            "title": "(タイトル不明・ストーリー)",
+            "videoUrl": url
+        }
+        res = requests.post(WEBHOOK_URL, json=payload)
+        print(f"✅ Story送信成功: {res.text}")
+
+if __name__ == "__main__":
+    try:
+        print(f"🔍 {INSTAGRAM_USER} のストーリーを取得中...")
+        html = get_story_html(INSTAGRAM_USER)
+        script = extract_story_urls(html)
+        if script:
+            parse_and_send(script)
+        else:
+            print("📭 ストーリー用のスクリプトデータが見つかりませんでした。")
+    except Exception as e:
+        print(f"❌ エラー発生: {e}")
