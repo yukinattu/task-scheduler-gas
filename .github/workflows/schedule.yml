@@ -30,4 +30,4 @@ jobs:
       - name: Install dependencies
         run: npm install
       - name: Run Instagram Reels scraper (a_n_o2mass)
-        run: node insta-reels-scraper2.jsjobs
+        run: node insta-reels-scraper2.js
