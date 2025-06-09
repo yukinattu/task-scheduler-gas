@@ -11,7 +11,7 @@ import requests
 import re
 
 # ===== 設定 =====
-INSTAGRAM_USER = ""
+INSTAGRAM_USER = "pokemon_jpn"
 SESSIONID = "73295698085%3AGN9zs8UcGVCwu9%3A1%3AAYfILLFlkNkRGo0jasKQ3fmsbPOJyF10ISIFwQvMcg"
 WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45dHT2zfE6k8GjaskiT9CpaqEGEvmPtHsJrgrS7cQx5gw1qvd8/exec"
 # =================
@@ -23,7 +23,7 @@ def get_story_urls_from_media(username):
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--window-size=1920,1080")
     chrome_options.add_argument("user-agent=Mozilla/5.0")
-    chrome_options.add_argument(f"--user-data-dir={tempfile.mkdtemp()}")  # 競合防止
+    chrome_options.add_argument(f"--user-data-dir={tempfile.mkdtemp()}")
 
     seleniumwire_options = {'disable_encoding': True}
     driver = webdriver.Chrome(options=chrome_options, seleniumwire_options=seleniumwire_options)
@@ -47,45 +47,47 @@ def get_story_urls_from_media(username):
         print("🎥 ストーリー再生UIが表示されました")
         body = driver.find_element(By.TAG_NAME, "body")
 
-        # ✅ ストーリー強制再生
-        for _ in range(3):
+        # 強制スキップ・クリック
+        for _ in range(2):
             body.click()
-            time.sleep(0.5)
+            time.sleep(0.3)
         body.send_keys(Keys.ARROW_RIGHT)
-        time.sleep(0.5)
-        body.send_keys(Keys.ARROW_RIGHT)
-
-        # ✅ img / video タグクリック
-        for tag in ["video", "img"]:
-            try:
-                elements = driver.find_elements(By.TAG_NAME, tag)
-                if elements:
-                    elements[0].click()
-                    print(f"🖱️ {tag}タグをクリックしました")
-            except:
-                pass
+        time.sleep(0.3)
 
     except Exception:
         print("⚠️ ストーリーUIの表示に失敗しました")
 
-    print("⏳ .jpg/.mp4リクエストの受信を待機中（40秒）...")
-    time.sleep(40)
-
     story_urls = set()
     debug_urls = []
 
+    print("⏳ 通信＆タグのURL抽出を開始（40秒待機）...")
+    time.sleep(40)
+
+    # 通信から抽出（従来）
     for request in driver.requests:
         if request.response:
             url = request.url
             if any(ext in url for ext in [".mp4", ".jpg", ".jpeg", ".webp", ".png"]):
                 debug_urls.append(url)
-                if "scontent" in url:  # 📌 Instagram CDN のみに限定する場合
-                    matches = re.findall(r'/stories/[^/]+/(\d+)', url)
-                    if not matches:
-                        matches = re.findall(r'/(\d{15,})_', url)
+                matches = re.findall(r'/(\d{15,})_', url)
+                for story_id in matches:
+                    full_url = f"https://www.instagram.com/stories/{username}/{story_id}/"
+                    story_urls.add(full_url)
+
+    # タグのsrcからも抽出（新規）
+    for tag in ["video", "img"]:
+        try:
+            elements = driver.find_elements(By.TAG_NAME, tag)
+            for e in elements:
+                src = e.get_attribute("src")
+                if src and any(ext in src for ext in [".jpg", ".mp4", ".webp", ".jpeg"]):
+                    debug_urls.append(src)
+                    matches = re.findall(r'/(\d{15,})_', src)
                     for story_id in matches:
                         full_url = f"https://www.instagram.com/stories/{username}/{story_id}/"
                         story_urls.add(full_url)
+        except:
+            continue
 
     driver.quit()
 
@@ -105,7 +107,7 @@ def post_to_webhook(story_urls):
             "publishedDate": datetime.now().strftime("%Y-%m-%d"),
             "platform": "Instagram Story",
             "channel": INSTAGRAM_USER,
-            "title": "(ストーリーURL from CDN)",
+            "title": "(ストーリーURL from tag/src)",
             "videoUrl": url
         }
         try:
@@ -116,7 +118,7 @@ def post_to_webhook(story_urls):
 
 if __name__ == "__main__":
     try:
-        print(f"🔍 {INSTAGRAM_USER} のストーリー個別リンクを抽出中（mp4/jpg経由）...")
+        print(f"🔍 {INSTAGRAM_USER} のストーリー個別リンクを抽出中（通信/タグ両対応）...")
         urls = get_story_urls_from_media(INSTAGRAM_USER)
         post_to_webhook(urls)
     except Exception as e:
