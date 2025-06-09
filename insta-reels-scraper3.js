@@ -14,7 +14,8 @@ const FEED_URL = `https://www.instagram.com/${INSTAGRAM_USER}/`;
 const STORY_URL = `https://www.instagram.com/stories/${INSTAGRAM_USER}/`;
 const THREADS_URL = `https://www.threads.net/@${INSTAGRAM_USER}`;
 
-const INSTAGRAM_SESSIONID = "73295698085%3ALu2YBiMIgHLOfG%3A8%3AAYfOlJxDa3gSGVlRcAVgdMDI3NEpkSp8TzL7ejqw0Q`;
+const INSTAGRAM_SESSIONID = "73295698085%3ALu2YBiMIgHLOfG%3A8%3AAYfOlJxDa3gSGVlRcAVgdMDI3NEpkSp8TzL7ejqw0Q";
+
 
 function extractId(url, type) {
   if (type === "threads") {
