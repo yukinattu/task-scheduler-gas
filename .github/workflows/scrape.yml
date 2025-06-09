@@ -99,8 +99,8 @@ jobs:
           pip install selenium requests beautifulsoup4
           sudo apt update
           sudo apt install -y chromium-browser chromium-chromedriver
-          # 🔧 修正：シンボリックリンクが存在する場合は削除してから作成
-          if [ -L /usr/bin/chromedriver ]; then sudo rm /usr/bin/chromedriver; fi
+          # 🔧 無条件で削除してから作成（シンボリックリンクでも実体でもOK）
+          sudo rm -f /usr/bin/chromedriver
           sudo ln -s /usr/lib/chromium-browser/chromedriver /usr/bin/chromedriver
 
       - name: Run Instagram Story scraper for AKB
