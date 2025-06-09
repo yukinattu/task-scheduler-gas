@@ -11,7 +11,7 @@ import requests
 import re
 
 # ===== 設定 =====
-INSTAGRAM_USER = ""
+INSTAGRAM_USER = "pokemon_jpn"
 SESSIONID = "73295698085%3AGN9zs8UcGVCwu9%3A1%3AAYfILLFlkNkRGo0jasKQ3fmsbPOJyF10ISIFwQvMcg"
 WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45dHT2zfE6k8GjaskiT9CpaqEGEvmPtHsJrgrS7cQx5gw1qvd8/exec"
 # =================
@@ -47,7 +47,7 @@ def get_story_urls_from_media(username):
         print("🎥 ストーリー再生UIが表示されました")
         body = driver.find_element(By.TAG_NAME, "body")
 
-        # ✅ ストーリー強制再生（クリック＋左右キー）
+        # ✅ ストーリー強制再生
         for _ in range(3):
             body.click()
             time.sleep(0.5)
@@ -55,7 +55,7 @@ def get_story_urls_from_media(username):
         time.sleep(0.5)
         body.send_keys(Keys.ARROW_RIGHT)
 
-        # ✅ img/videoタグをクリック
+        # ✅ img / video タグクリック
         for tag in ["video", "img"]:
             try:
                 elements = driver.find_elements(By.TAG_NAME, tag)
@@ -79,16 +79,16 @@ def get_story_urls_from_media(username):
             url = request.url
             if any(ext in url for ext in [".mp4", ".jpg", ".jpeg", ".webp", ".png"]):
                 debug_urls.append(url)
-                matches = re.findall(r'/stories/[^/]+/(\d+)', url)
-                if not matches:
-                    matches = re.findall(r'/(\d{15,})_', url)
-                for story_id in matches:
-                    full_url = f"https://www.instagram.com/stories/{username}/{story_id}/"
-                    story_urls.add(full_url)
+                if "scontent" in url:  # 📌 Instagram CDN のみに限定する場合
+                    matches = re.findall(r'/stories/[^/]+/(\d+)', url)
+                    if not matches:
+                        matches = re.findall(r'/(\d{15,})_', url)
+                    for story_id in matches:
+                        full_url = f"https://www.instagram.com/stories/{username}/{story_id}/"
+                        story_urls.add(full_url)
 
     driver.quit()
 
-    # 🔎 デバッグ用出力
     print("📦 抽出されたリクエストURLの例（最大5件）:")
     for url in list(debug_urls)[:5]:
         print(" -", url)
