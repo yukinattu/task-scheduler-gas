@@ -7,7 +7,7 @@ puppeteer.use(StealthPlugin());
 
 const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45dHT2zfE6k8GjaskiT9CpaqEGEvmPtHsJrgrS7cQx5gw1qvd8/exec";
 const EXISTING_URLS_API = WEBHOOK_URL;
-const INSTAGRAM_USER = "seina0227";
+const INSTAGRAM_USER = "moe_five";
 
 const REELS_URL = `https://www.instagram.com/${INSTAGRAM_USER}/reels/`;
 const FEED_URL = `https://www.instagram.com/${INSTAGRAM_USER}/`;
@@ -197,7 +197,7 @@ async function scrapeThreads(page, existingIds) {
   try {
     await page.setViewport({ width: 1280, height: 1024 });
 
-    await page.setCookie(
+    await page.setCookie(...[
       {
         name: "sessionid",
         value: INSTAGRAM_SESSIONID,
@@ -214,7 +214,7 @@ async function scrapeThreads(page, existingIds) {
         httpOnly: true,
         secure: true
       }
-    );
+    ]);
 
     await page.setUserAgent(
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/" +
