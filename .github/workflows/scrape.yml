@@ -99,7 +99,7 @@ jobs:
           pip install selenium requests beautifulsoup4
           sudo apt update
           sudo apt install -y chromium-browser chromium-chromedriver
-          sudo ln -s /usr/lib/chromium-browser/chromedriver /usr/bin/chromedriver
+          sudo ln -sf /usr/lib/chromium-browser/chromedriver /usr/bin/chromedriver
 
       - name: Run Instagram Story scraper for AKB
         env:
