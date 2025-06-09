@@ -9,7 +9,7 @@ import requests
 import re
 
 # ===== 設定 =====
-INSTAGRAM_USER = ""
+INSTAGRAM_USER = "jypetwice_japan"
 SESSIONID = "73295698085%3AGN9zs8UcGVCwu9%3A1%3AAYfILLFlkNkRGo0jasKQ3fmsbPOJyF10ISIFwQvMcg"
 WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45dHT2zfE6k8GjaskiT9CpaqEGEvmPtHsJrgrS7cQx5gw1qvd8/exec"
 # =================
@@ -38,7 +38,6 @@ def get_story_urls_from_media(username):
     driver.get(story_url)
 
     try:
-        # ✅ ストーリーが読み込まれたか確認（videoタグ）
         WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.TAG_NAME, "video"))
         )
@@ -46,13 +45,21 @@ def get_story_urls_from_media(username):
     except:
         print("⚠️ videoタグが読み込まれませんでしたが、続行します")
 
+    # ✅ videoタグを強制再生（ミュート）
     try:
-        driver.find_element(By.TAG_NAME, "body").click()
-    except:
-        pass
+        driver.execute_script("""
+            let videos = document.querySelectorAll("video");
+            for (let video of videos) {
+                video.muted = true;
+                video.play().catch(err => console.warn("⚠️ 再生失敗:", err));
+            }
+        """)
+        print("▶️ video.play() 実行済み")
+    except Exception as e:
+        print("⚠️ video.play() 実行エラー:", e)
 
-    # ✅ 再生・通信待ち（重要！）
-    time.sleep(10)
+    # ✅ 通信待機を長めに（CDN到達まで）
+    time.sleep(15)
 
     story_ids = set()
     for request in driver.requests:
