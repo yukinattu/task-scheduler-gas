@@ -1,58 +1,53 @@
 import instaloader
-import requests
-import os
 from datetime import datetime
+import requests
 
-# Webhook URL（GASで発行済のURLをここに入れてください）
-WEBHOOK_URL = "https://script.google.com/macros/s/XXXXX/exec"
+# 設定（ここは適宜変更）
+INSTAGRAM_USER = "a_n_o2mass"  # 対象アカウント
+SESSION_USERNAME = "milimori111"  # セッションファイル名（ログイン済み）
+WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45dHT2zfE6k8GjaskiT9CpaqEGEvmPtHsJrgrS7cQx5gw1qvd8/exec"
 
-# チェック対象のInstagramユーザー
-INSTAGRAM_USERS = ["a_n_o2mass", "nogizaka46_official", "yasu.ryu9chakra", "takato_fs"]
+# インスタンス生成
+L = instaloader.Instaloader()
 
-# 保存済みのURLリスト（ローカルファイル運用）
-EXISTING_IDS_FILE = "existing_story_ids.txt"
+# セッションファイルからログイン状態をロード
+try:
+    L.load_session_from_file(SESSION_USERNAME)
+    print(f"✅ セッションファイル {SESSION_USERNAME} を読み込みました。")
+except Exception as e:
+    print(f"❌ セッション読み込み失敗: {e}")
+    exit(1)
 
-# 既存IDの読み込み（ローカルファイルベース）
-def load_existing_ids():
-    if not os.path.exists(EXISTING_IDS_FILE):
-        return set()
-    with open(EXISTING_IDS_FILE, "r") as f:
-        return set(line.strip() for line in f.readlines())
+# プロフィール取得
+try:
+    profile = instaloader.Profile.from_username(L.context, INSTAGRAM_USER)
+    print(f"👤 {INSTAGRAM_USER} のプロフィールを取得しました")
+except Exception as e:
+    print(f"❌ プロフィール取得失敗: {e}")
+    exit(1)
 
-# 既存IDの保存
-def save_existing_ids(ids):
-    with open(EXISTING_IDS_FILE, "w") as f:
-        for id in ids:
-            f.write(id + "\n")
+# ストーリー取得（直近のもの）
+try:
+    stories = L.get_stories(userids=[profile.userid])
+    found = False
+    for story in stories:
+        for item in story.get_items():
+            story_url = item.url
+            taken_at = item.date_local.strftime("%Y-%m-%d")
+            title = item.caption or "(キャプションなし)"
 
-# メイン処理
-def main():
-    existing_ids = load_existing_ids()
-    new_ids = set()
+            payload = {
+                "publishedDate": taken_at,
+                "platform": "Instagram Story",
+                "channel": INSTAGRAM_USER,
+                "title": title,
+                "videoUrl": story_url
+            }
 
-    L = instaloader.Instaloader()
-    for user in INSTAGRAM_USERS:
-        try:
-            profile = instaloader.Profile.from_username(L.context, user)
-            for story in L.get_stories(userids=[profile.userid]):
-                for item in story.get_items():
-                    story_id = str(item.mediaid)
-                    if story_id in existing_ids:
-                        continue
-                    post_data = {
-                        "publishedDate": datetime.now().strftime("%Y-%m-%d"),
-                        "platform": "Instagram Story",
-                        "channel": user,
-                        "title": item.caption or "(タイトル不明)",
-                        "videoUrl": item.url  # 動画または画像のURL
-                    }
-                    res = requests.post(WEBHOOK_URL, json=post_data)
-                    print(f"✅ 送信成功（{user}）: {story_id} - {res.text}")
-                    new_ids.add(story_id)
-        except Exception as e:
-            print(f"❌ エラー（{user}）: {e}")
-
-    save_existing_ids(existing_ids.union(new_ids))
-
-if __name__ == "__main__":
-    main()
+            res = requests.post(WEBHOOK_URL, json=payload)
+            print(f"✅ Story送信成功: {res.text}")
+            found = True
+    if not found:
+        print("📭 ストーリーは見つかりませんでした。")
+except Exception as e:
+    print(f"❌ ストーリー取得失敗: {e}")
