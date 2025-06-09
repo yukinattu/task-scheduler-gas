@@ -96,9 +96,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install selenium selenium-wire requests beautifulsoup4 \
-                      git+https://github.com/jaraco/backports.entry_points_selectable \
-                      git+https://github.com/mitsuhiko/blinker.git
+          pip install --upgrade pip
+          pip install selenium selenium-wire requests beautifulsoup4 blinker==1.6.2
           sudo apt update
           sudo apt install -y chromium-browser chromium-chromedriver
           sudo rm -f /usr/bin/chromedriver
