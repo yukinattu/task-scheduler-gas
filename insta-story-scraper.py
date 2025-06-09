@@ -6,12 +6,12 @@ import requests
 import re
 
 # ===== 設定 =====
-INSTAGRAM_USER = "official_ske48"
+INSTAGRAM_USER = "hinatazaka46tw"
 SESSIONID = "73295698085%3AGN9zs8UcGVCwu9%3A1%3AAYfILLFlkNkRGo0jasKQ3fmsbPOJyF10ISIFwQvMcg"
 WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45dHT2zfE6k8GjaskiT9CpaqEGEvmPtHsJrgrS7cQx5gw1qvd8/exec"
 # =================
 
-def get_story_id_urls(username):
+def get_story_urls_from_media(username):
     chrome_options = Options()
     chrome_options.add_argument("--headless")
     chrome_options.add_argument("--disable-gpu")
@@ -38,16 +38,17 @@ def get_story_id_urls(username):
     time.sleep(6)
 
     story_ids = set()
+
     for request in driver.requests:
         if request.response and "cdninstagram" in request.url and (".mp4" in request.url or ".jpg" in request.url):
-            # ストーリーIDをURL内から抽出（15桁以上の数字の後にアンダースコアがあるもの）
+            # URL中からstory_idっぽい数字列を抽出
             matches = re.findall(r'/(\d{15,})_', request.url)
-            for match in matches:
-                story_ids.add(match)
+            for story_id in matches:
+                full_url = f"https://www.instagram.com/stories/{username}/{story_id}/"
+                story_ids.add(full_url)
 
     driver.quit()
-
-    return [f"https://www.instagram.com/stories/{username}/{story_id}/" for story_id in story_ids]
+    return story_ids
 
 def post_to_webhook(story_urls):
     if not story_urls:
@@ -59,7 +60,7 @@ def post_to_webhook(story_urls):
             "publishedDate": datetime.now().strftime("%Y-%m-%d"),
             "platform": "Instagram Story",
             "channel": INSTAGRAM_USER,
-            "title": "(ストーリーURL)",
+            "title": "(推測IDから生成)",
             "videoUrl": url
         }
         try:
@@ -70,8 +71,8 @@ def post_to_webhook(story_urls):
 
 if __name__ == "__main__":
     try:
-        print(f"🔍 {INSTAGRAM_USER} のストーリー個別リンクを抽出中...")
-        urls = get_story_id_urls(INSTAGRAM_USER)
+        print(f"🔍 {INSTAGRAM_USER} のストーリー個別リンクを抽出中（mp4/jpg経由）...")
+        urls = get_story_urls_from_media(INSTAGRAM_USER)
         post_to_webhook(urls)
     except Exception as e:
         print(f"❌ エラー発生: {e}")
