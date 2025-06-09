@@ -84,26 +84,15 @@ jobs:
       - name: Run X scraper
         run: node x-scraper.js
 
-  insta-story-akb:
+  insta-story-puppeteer:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
         with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: |
-          pip install --upgrade pip
-          pip install selenium selenium-wire requests beautifulsoup4 blinker==1.6.2
-          sudo apt update
-          sudo apt install -y chromium-browser chromium-chromedriver
-          sudo rm -f /usr/bin/chromedriver
-          sudo ln -s /usr/lib/chromium-browser/chromedriver /usr/bin/chromedriver
-
-      - name: Run Instagram Story scraper for AKB
-        env:
-          CHROME_BIN: /usr/bin/chromium-browser
-        run: python insta-story-scraper.py
+          node-version: 20
+      - name: Install Puppeteer
+        run: npm install puppeteer
+      - name: Run Instagram Story Puppeteer scraper
+        run: node insta-story-puppeteer.js
