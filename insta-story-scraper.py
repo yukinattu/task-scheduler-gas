@@ -1,16 +1,17 @@
-from seleniumwire import webdriver  # ← selenium-wireで通信傍受
+from seleniumwire import webdriver
 from selenium.webdriver.chrome.options import Options
+from bs4 import BeautifulSoup
 from datetime import datetime
 import time
 import requests
 
 # ===== 設定 =====
-INSTAGRAM_USER = ""  # ← 対象アカウント（例: sakurazaka46jp）
+INSTAGRAM_USER = "sakurazaka46jp"
 SESSIONID = "73295698085%3AGN9zs8UcGVCwu9%3A1%3AAYfILLFlkNkRGo0jasKQ3fmsbPOJyF10ISIFwQvMcg"
 WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45dHT2zfE6k8GjaskiT9CpaqEGEvmPtHsJrgrS7cQx5gw1qvd8/exec"
 # =================
 
-def get_story_media_urls(username):
+def get_highlight_urls(username):
     chrome_options = Options()
     chrome_options.add_argument("--headless")
     chrome_options.add_argument("--disable-gpu")
@@ -32,45 +33,45 @@ def get_story_media_urls(username):
         "secure": True
     })
 
-    # ストーリーURLへアクセス
-    driver.get(f"https://www.instagram.com/stories/{username}/")
-    time.sleep(6)
+    profile_url = f"https://www.instagram.com/{username}/"
+    driver.get(profile_url)
+    time.sleep(5)
 
-    # 通信の中から画像/動画URLを抽出
-    urls = set()
-    for request in driver.requests:
-        if request.response and (
-            "cdninstagram" in request.url and
-            (".mp4" in request.url or ".jpg" in request.url or ".jpeg" in request.url)
-        ):
-            urls.add(request.url)
+    soup = BeautifulSoup(driver.page_source, "html.parser")
+    highlight_urls = []
+
+    for a in soup.find_all("a", href=True):
+        if a["href"].startswith("/stories/highlights/"):
+            full_url = f"https://www.instagram.com{a['href']}"
+            if full_url not in highlight_urls:
+                highlight_urls.append(full_url)
 
     driver.quit()
-    return urls
+    return highlight_urls
 
-def post_to_webhook(media_urls):
-    if not media_urls:
-        print("📭 ストーリー動画/画像は見つかりませんでした。")
+def post_to_webhook(highlight_urls):
+    if not highlight_urls:
+        print("📭 ハイライトURLが見つかりませんでした。")
         return
 
-    for url in media_urls:
+    for url in highlight_urls:
         payload = {
             "publishedDate": datetime.now().strftime("%Y-%m-%d"),
-            "platform": "Instagram Story",
+            "platform": "Instagram Story Highlight",
             "channel": INSTAGRAM_USER,
-            "title": "(DOM抽出ストーリー)",
+            "title": "(ハイライトURL)",
             "videoUrl": url
         }
         try:
             res = requests.post(WEBHOOK_URL, json=payload)
-            print(f"✅ Story送信成功: {res.text}")
+            print(f"✅ ハイライトURL送信成功: {url}")
         except Exception as e:
             print(f"❌ Webhook送信失敗: {e}")
 
 if __name__ == "__main__":
     try:
-        print(f"🔍 {INSTAGRAM_USER} のストーリーを取得中（selenium-wire）...")
-        urls = get_story_media_urls(INSTAGRAM_USER)
+        print(f"🔍 {INSTAGRAM_USER} のハイライトリンクを取得中...")
+        urls = get_highlight_urls(INSTAGRAM_USER)
         post_to_webhook(urls)
     except Exception as e:
         print(f"❌ エラー発生: {e}")
