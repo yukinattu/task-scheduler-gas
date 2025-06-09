@@ -2,9 +2,9 @@ const puppeteer = require('puppeteer');
 
 (async () => {
   const browser = await puppeteer.launch({
-    headless: false, // ストーリー描画を目視で確認したい場合はfalse
+    headless: "new", // ✅ GitHub Actionsでは必須（GUIなし対応）
     defaultViewport: { width: 1280, height: 800 },
-    args: ['--no-sandbox', '--disable-setuid-sandbox'] // ← 追加（GitHub Actions対策）
+    args: ['--no-sandbox', '--disable-setuid-sandbox'] // ✅ セキュリティサンドボックス回避
   });
 
   const page = await browser.newPage();
@@ -25,7 +25,7 @@ const puppeteer = require('puppeteer');
 
   const storyRequests = [];
 
-  // 画像・動画のXHRリクエストを監視
+  // 📡 画像・動画のリクエストを検知
   page.on('request', req => {
     const url = req.url();
     if (url.includes('cdninstagram') && /\.(jpg|jpeg|mp4|webp|png)/.test(url)) {
@@ -36,8 +36,8 @@ const puppeteer = require('puppeteer');
 
   await page.goto(storyUrl, { waitUntil: 'networkidle2' });
 
-  // ストーリーの読み込みを待機
-  await page.waitForTimeout(30000); // 30秒（必要に応じて調整）
+  // 🕒 ストーリー読み込み待機（描画後のXHRをキャプチャするため）
+  await page.waitForTimeout(30000);
 
   await browser.close();
 
