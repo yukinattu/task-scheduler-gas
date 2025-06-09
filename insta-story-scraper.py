@@ -9,14 +9,15 @@ import requests
 import re
 
 # ===== 設定 =====
-INSTAGRAM_USER = ""
+INSTAGRAM_USER = "niziu_info_official"
 SESSIONID = "73295698085%3AGN9zs8UcGVCwu9%3A1%3AAYfILLFlkNkRGo0jasKQ3fmsbPOJyF10ISIFwQvMcg"
 WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45dHT2zfE6k8GjaskiT9CpaqEGEvmPtHsJrgrS7cQx5gw1qvd8/exec"
 # =================
 
 def get_story_urls_from_media(username):
     chrome_options = Options()
-    chrome_options.add_argument("--headless=new")
+    # ✅ GUI表示を有効に（headless無効）
+    # chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--window-size=1920,1080")
@@ -54,8 +55,10 @@ def get_story_urls_from_media(username):
 
     story_urls = set()
     for request in driver.requests:
-        if request.response and "cdninstagram" in request.url and (".mp4" in request.url or ".jpg" in request.url or ".jpeg" in request.url):
-            # 改良された正規表現で story_id を抽出
+        if request.response and "cdninstagram" in request.url and (
+            ".mp4" in request.url or ".jpg" in request.url or ".jpeg" in request.url
+        ):
+            # story_id を抽出（2パターン試行）
             matches = re.findall(r'/stories/[^/]+/(\d+)', request.url)
             if not matches:
                 matches = re.findall(r'/(\d{15,})_', request.url)
