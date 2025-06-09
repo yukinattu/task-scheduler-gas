@@ -96,7 +96,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install selenium selenium-wire requests beautifulsoup4
+          pip install selenium selenium-wire requests beautifulsoup4 blinker
           sudo apt update
           sudo apt install -y chromium-browser chromium-chromedriver
           sudo rm -f /usr/bin/chromedriver
