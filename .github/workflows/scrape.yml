@@ -93,6 +93,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install dependencies
-        run: pip install instaloader requests
+        run: pip install requests beautifulsoup4
       - name: Run Instagram Story scraper
         run: python insta-story-scraper.py
+
