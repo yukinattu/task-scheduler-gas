@@ -6,7 +6,7 @@ import time
 import requests
 
 # ===== 設定 =====
-INSTAGRAM_USER = "sakurazaka46jp"
+INSTAGRAM_USER = ""
 SESSIONID = "73295698085%3AGN9zs8UcGVCwu9%3A1%3AAYfILLFlkNkRGo0jasKQ3fmsbPOJyF10ISIFwQvMcg"
 WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45dHT2zfE6k8GjaskiT9CpaqEGEvmPtHsJrgrS7cQx5gw1qvd8/exec"
 # =================
