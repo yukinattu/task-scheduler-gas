@@ -2,12 +2,14 @@ const puppeteer = require('puppeteer');
 
 (async () => {
   const browser = await puppeteer.launch({
-    headless: false, // ← ストーリー描画のため「非headless」に
-    defaultViewport: { width: 1280, height: 800 }
+    headless: false, // ストーリー描画を目視で確認したい場合はfalse
+    defaultViewport: { width: 1280, height: 800 },
+    args: ['--no-sandbox', '--disable-setuid-sandbox'] // ← 追加（GitHub Actions対策）
   });
+
   const page = await browser.newPage();
 
-  const SESSIONID = '73295698085%3AGN9zs8UcGVCwu9%3A1%3AAYc9xaijxxpS0fqCIa7Qk6JcYRH-wKHgoW71iBsIEA'; // InstagramのセッションIDを貼る
+  const SESSIONID = '73295698085%3AGN9zs8UcGVCwu9%3A1%3AAYc9xaijxxpS0fqCIa7Qk6JcYRH-wKHgoW71iBsIEA';
 
   await page.setCookie({
     name: 'sessionid',
@@ -23,6 +25,7 @@ const puppeteer = require('puppeteer');
 
   const storyRequests = [];
 
+  // 画像・動画のXHRリクエストを監視
   page.on('request', req => {
     const url = req.url();
     if (url.includes('cdninstagram') && /\.(jpg|jpeg|mp4|webp|png)/.test(url)) {
@@ -33,8 +36,8 @@ const puppeteer = require('puppeteer');
 
   await page.goto(storyUrl, { waitUntil: 'networkidle2' });
 
-  // ストーリー描画が安定するまで待機
-  await page.waitForTimeout(30000); // 30秒程度（必要に応じて）
+  // ストーリーの読み込みを待機
+  await page.waitForTimeout(30000); // 30秒（必要に応じて調整）
 
   await browser.close();
 
