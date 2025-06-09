@@ -106,4 +106,4 @@ jobs:
       - name: Run Instagram Story scraper for AKB
         env:
           CHROME_BIN: /usr/bin/chromium-browser
-        run: python insta-story-scraper.py
+        
