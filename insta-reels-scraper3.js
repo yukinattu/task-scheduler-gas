@@ -8,7 +8,7 @@ puppeteer.use(StealthPlugin());
 
 const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45dHT2zfE6k8GjaskiT9CpaqEGEvmPtHsJrgrS7cQx5gw1qvd8/exec";
 const EXISTING_URLS_API = WEBHOOK_URL;
-const INSTAGRAM_USER = "seina0227";
+const INSTAGRAM_USER = "sayaka_okada";
 
 const REELS_URL = `https://www.instagram.com/${INSTAGRAM_USER}/reels/`;
 const FEED_URL = `https://www.instagram.com/${INSTAGRAM_USER}/`;
@@ -114,6 +114,14 @@ async function scrapeThreads(page, existingIds) {
   try {
     await page.goto(THREADS_URL, { waitUntil: "networkidle2", timeout: 0 });
     await page.waitForTimeout(6000);
+
+    try {
+      await page.waitForSelector("article", { timeout: 10000 });
+    } catch {
+      await page.screenshot({ path: "threads_error.png" });
+      console.error("❌ article セレクタが見つかりません（スクショ threads_error.png を確認）");
+      return;
+    }
 
     const postData = await page.evaluate(() => {
       const articles = document.querySelectorAll("article");
