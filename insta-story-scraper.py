@@ -9,14 +9,14 @@ import requests
 import re
 
 # ===== 設定 =====
-INSTAGRAM_USER = ""
+INSTAGRAM_USER = "niziu_info_official"
 SESSIONID = "73295698085%3AGN9zs8UcGVCwu9%3A1%3AAYfILLFlkNkRGo0jasKQ3fmsbPOJyF10ISIFwQvMcg"
 WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45dHT2zfE6k8GjaskiT9CpaqEGEvmPtHsJrgrS7cQx5gw1qvd8/exec"
 # =================
 
 def get_story_urls_from_media(username):
     chrome_options = Options()
-    chrome_options.add_argument("--headless=new")  # ← 新方式のヘッドレスでDOM安定
+    chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--window-size=1920,1080")
@@ -38,18 +38,21 @@ def get_story_urls_from_media(username):
     driver.get(story_url)
 
     try:
-        # ストーリー表示を明示的に待機（例: canvas が読み込まれる）
+        # ✅ ストーリーが読み込まれたか確認（videoタグ）
         WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.TAG_NAME, "canvas"))
+            EC.presence_of_element_located((By.TAG_NAME, "video"))
         )
-        time.sleep(5)  # 再生を待つ（動画読み込みのため）
-        try:
-            driver.find_element(By.TAG_NAME, "body").click()  # ストーリー再生を促進
-        except:
-            pass
-        time.sleep(5)
+        print("🎥 ストーリー再生UIが読み込まれました")
     except:
-        print("⚠️ ストーリーUIの読み込みに失敗しました")
+        print("⚠️ videoタグが読み込まれませんでしたが、続行します")
+
+    try:
+        driver.find_element(By.TAG_NAME, "body").click()
+    except:
+        pass
+
+    # ✅ 再生・通信待ち（重要！）
+    time.sleep(10)
 
     story_ids = set()
     for request in driver.requests:
@@ -72,12 +75,12 @@ def post_to_webhook(story_urls):
             "publishedDate": datetime.now().strftime("%Y-%m-%d"),
             "platform": "Instagram Story",
             "channel": INSTAGRAM_USER,
-            "title": "(mp4から生成されたURL)",
+            "title": "(ストーリーURL from CDN)",
             "videoUrl": url
         }
         try:
             res = requests.post(WEBHOOK_URL, json=payload)
-            print(f"✅ ストーリーURL送信成功: {url}")
+            print(f"✅ Story URL送信成功: {url}")
         except Exception as e:
             print(f"❌ Webhook送信失敗: {e}")
 
