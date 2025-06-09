@@ -47,16 +47,16 @@ def extract_story_urls(html):
     return ""
 
 def parse_and_send(script_text):
-    urls_video = re.findall(r'"video_url":"([^"]+)"', script_text)
-    urls_image = re.findall(r'"display_url":"([^"]+)"', script_text)
+    urls_video = re.findall(r'"video_url":"([^\"]+)"', script_text)
+    urls_image = re.findall(r'"display_url":"([^\"]+)"', script_text)
 
     all_urls = set(
-        url.replace("\u0026", "&").replace("\", "")
+        url.replace("\\u0026", "&").replace("\\", "")
         for url in urls_video + urls_image
     )
 
     if not all_urls:
-        print("📭 ストーリー動画/画像は見つかりませんでした。")
+        print("📬 ストーリー動画/画像は見つかりませんでした。")
         return
 
     for url in all_urls:
@@ -81,6 +81,6 @@ if __name__ == "__main__":
         if script:
             parse_and_send(script)
         else:
-            print("📭 スクリプト内にストーリー情報が見つかりませんでした。")
+            print("📬 スクリプト内にストーリー情報が見つかりませんでした。")
     except Exception as e:
         print(f"❌ エラー発生: {e}")
