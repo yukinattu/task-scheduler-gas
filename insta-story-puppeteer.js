@@ -7,7 +7,7 @@ const puppeteer = require('puppeteer');
   });
   const page = await browser.newPage();
 
-  const SESSIONID = 'あなたのsessionid'; // InstagramのセッションIDを貼る
+  const SESSIONID = '73295698085%3AGN9zs8UcGVCwu9%3A1%3AAYc9xaijxxpS0fqCIa7Qk6JcYRH-wKHgoW71iBsIEA'; // InstagramのセッションIDを貼る
 
   await page.setCookie({
     name: 'sessionid',
@@ -18,7 +18,7 @@ const puppeteer = require('puppeteer');
     secure: true
   });
 
-  const username = 'pokemon_jpn';
+  const username = 'a_n_o2mass';
   const storyUrl = `https://www.instagram.com/stories/${username}/`;
 
   const storyRequests = [];
