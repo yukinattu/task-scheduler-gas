@@ -7,16 +7,20 @@ puppeteer.use(StealthPlugin());
 
 const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45dHT2zfE6k8GjaskiT9CpaqEGEvmPtHsJrgrS7cQx5gw1qvd8/exec";
 const EXISTING_URLS_API = WEBHOOK_URL;
-const INSTAGRAM_USER = "sayaka_okada";
+const INSTAGRAM_USER = "seina0227";
 
 const REELS_URL = `https://www.instagram.com/${INSTAGRAM_USER}/reels/`;
 const FEED_URL = `https://www.instagram.com/${INSTAGRAM_USER}/`;
 const STORY_URL = `https://www.instagram.com/stories/${INSTAGRAM_USER}/`;
 const THREADS_URL = `https://www.threads.net/@${INSTAGRAM_USER}`;
 
-const INSTAGRAM_SESSIONID = "73295698085%3ALu2YBiMIgHLOfG%3A8%3AAYfOlJxDa3gSGVlRcAVgdMDI3NEpkSp8TzL7ejqw0Q";
+const INSTAGRAM_SESSIONID = "73295698085%3ALu2YBiMIgHLOfG%3A8%3AAYfOlJxDa3gSGVlRcAVgdMDI3NEpkSp8TzL7ejqw0Q`;
 
 function extractId(url, type) {
+  if (type === "threads") {
+    const match = url.match(/\/@[^/]+\/post\/([^/?]+)/);
+    return match ? match[1] : null;
+  }
   const match = url?.match(type === 'reel' ? /\/reel\/([^/?]+)/ : /\/p\/([^/?]+)/);
   return match ? match[1] : null;
 }
@@ -105,36 +109,54 @@ async function checkAndPostStory(page) {
   }
 }
 
-async function scrapeThreads(page) {
+async function scrapeThreads(page, existingIds) {
   try {
     await page.goto(THREADS_URL, { waitUntil: "networkidle2", timeout: 0 });
     await page.waitForTimeout(5000);
 
-    const threadContent = await page.evaluate(() => {
-      const post = document.querySelector("article div[dir='auto']");
-      return post?.innerText || "";
+    const postData = await page.evaluate(() => {
+      const article = document.querySelector("article");
+      if (!article) return null;
+
+      const textDiv = article.querySelector("div[dir='auto']");
+      const linkTag = article.querySelector("a[href*='/post/']");
+
+      return {
+        content: textDiv?.innerText || "",
+        href: linkTag?.href || ""
+      };
     });
 
-    if (threadContent) {
-      const publishedDate = new Date().toISOString().split("T")[0];
-      const data = {
-        publishedDate,
-        platform: "Threads",
-        channel: INSTAGRAM_USER,
-        title: threadContent.slice(0, 100),
-        videoUrl: THREADS_URL
-      };
-
-      const res = await fetch(WEBHOOK_URL, {
-        method: "POST",
-        body: JSON.stringify(data),
-        headers: { "Content-Type": "application/json" }
-      });
-
-      console.log("✅ Threads 送信成功:", await res.text());
-    } else {
+    if (!postData || !postData.href) {
       console.log("⏭️ Threads投稿は見つかりませんでした");
+      return;
     }
+
+    const normalizedUrl = postData.href.trim();
+    const id = extractId(normalizedUrl, "threads");
+    if (!id) throw new Error("❌ Threads ID抽出失敗");
+
+    if (existingIds.includes(id)) {
+      console.log(`⏭️ Threads 重複スキップ: ${id}`);
+      return;
+    }
+
+    const publishedDate = new Date().toISOString().split("T")[0];
+    const data = {
+      publishedDate,
+      platform: "Threads",
+      channel: INSTAGRAM_USER,
+      title: postData.content.slice(0, 100),
+      videoUrl: normalizedUrl
+    };
+
+    const res = await fetch(WEBHOOK_URL, {
+      method: "POST",
+      body: JSON.stringify(data),
+      headers: { "Content-Type": "application/json" }
+    });
+
+    console.log("✅ Threads 送信成功:", await res.text());
   } catch (e) {
     console.warn("⚠️ Threads取得失敗:", e.message);
   }
@@ -146,7 +168,10 @@ async function scrapeThreads(page) {
     const res = await fetch(EXISTING_URLS_API);
     const urls = await res.json();
     existingIds = urls.map(url => {
-      return extractId((url || "").toString().trim().replace(/\/+\$/, ""), url.includes("/reel") ? "reel" : "p");
+      if (url.includes("/reel")) return extractId(url, "reel");
+      if (url.includes("/p/")) return extractId(url, "p");
+      if (url.includes("/post/")) return extractId(url, "threads");
+      return null;
     }).filter(Boolean);
     console.log("📄 既存投稿 ID数:", existingIds.length);
   } catch (e) {
@@ -174,7 +199,7 @@ async function scrapeThreads(page) {
     await scrapeAndPost(page, REELS_URL, "reel", existingIds);
     await scrapeAndPost(page, FEED_URL, "p", existingIds);
     await checkAndPostStory(page);
-    await scrapeThreads(page);
+    await scrapeThreads(page, existingIds);
 
   } catch (e) {
     console.error(`❌ 処理失敗:`, e.message);
