@@ -1,3 +1,4 @@
+
 const puppeteer = require("puppeteer-extra");
 const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 const fs = require("fs");
@@ -16,10 +17,9 @@ const THREADS_URL = `https://www.threads.net/@${INSTAGRAM_USER}`;
 
 const INSTAGRAM_SESSIONID = "73295698085%3ALu2YBiMIgHLOfG%3A8%3AAYfOlJxDa3gSGVlRcAVgdMDI3NEpkSp8TzL7ejqw0Q";
 
-
 function extractId(url, type) {
   if (type === "threads") {
-    const match = url.match(/\/@[^/]+\/post\/([^/?]+)/);
+    const match = url.match(/\/[@][^/]+\/post\/([^/?]+)/);
     return match ? match[1] : null;
   }
   const match = url?.match(type === 'reel' ? /\/reel\/([^/?]+)/ : /\/p\/([^/?]+)/);
@@ -113,18 +113,23 @@ async function checkAndPostStory(page) {
 async function scrapeThreads(page, existingIds) {
   try {
     await page.goto(THREADS_URL, { waitUntil: "networkidle2", timeout: 0 });
-    await page.waitForTimeout(5000);
+    await page.waitForTimeout(6000);
 
     const postData = await page.evaluate(() => {
-      const article = document.querySelector("article");
-      if (!article) return null;
+      const articles = document.querySelectorAll("article");
+      if (!articles.length) return null;
 
-      const textDiv = article.querySelector("div[dir='auto']");
-      const linkTag = article.querySelector("a[href*='/post/']");
+      const firstArticle = articles[0];
+
+      const textDivs = Array.from(firstArticle.querySelectorAll("div[dir='auto']"));
+      const content = textDivs.map(div => div.innerText).join("\n").trim();
+
+      const anchorTags = Array.from(firstArticle.querySelectorAll("a[href*='/@']"));
+      const postLink = anchorTags.find(a => a.href.includes("/post/"))?.href;
 
       return {
-        content: textDiv?.innerText || "",
-        href: linkTag?.href || ""
+        content,
+        href: postLink?.startsWith("http") ? postLink : `https://www.threads.net${postLink}`
       };
     });
 
