@@ -9,7 +9,7 @@ import requests
 import re
 
 # ===== 設定 =====
-INSTAGRAM_USER = ""
+INSTAGRAM_USER = "official_ske48"
 SESSIONID = "73295698085%3AGN9zs8UcGVCwu9%3A1%3AAYfILLFlkNkRGo0jasKQ3fmsbPOJyF10ISIFwQvMcg"
 WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45dHT2zfE6k8GjaskiT9CpaqEGEvmPtHsJrgrS7cQx5gw1qvd8/exec"
 # =================
@@ -42,17 +42,23 @@ def get_story_urls_from_media(username):
             EC.presence_of_element_located((By.TAG_NAME, "body"))
         )
         print("🎥 ストーリー再生UIが表示されました")
-        driver.find_element(By.TAG_NAME, "body").click()
+        body = driver.find_element(By.TAG_NAME, "body")
+        for _ in range(3):
+            body.click()
+            time.sleep(0.5)
     except Exception:
         print("⚠️ ストーリーUIの表示に失敗しました")
 
-    print("⏳ .jpg/.mp4リクエストの受信を待機中...")
-    time.sleep(15)  # ← 静止画の読み込みに充分な時間
+    print("⏳ .jpg/.mp4リクエストの受信を待機中（25秒）...")
+    time.sleep(25)
 
     story_urls = set()
     for request in driver.requests:
-        if request.response and "cdninstagram" in request.url and (".mp4" in request.url or ".jpg" in request.url):
-            matches = re.findall(r'/(\d{15,})_', request.url)
+        if request.response and "cdninstagram" in request.url and (".mp4" in request.url or ".jpg" in request.url or ".jpeg" in request.url):
+            # 改良された正規表現で story_id を抽出
+            matches = re.findall(r'/stories/[^/]+/(\d+)', request.url)
+            if not matches:
+                matches = re.findall(r'/(\d{15,})_', request.url)
             for story_id in matches:
                 full_url = f"https://www.instagram.com/stories/{username}/{story_id}/"
                 story_urls.add(full_url)
