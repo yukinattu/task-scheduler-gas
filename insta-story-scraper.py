@@ -1,14 +1,12 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
 from bs4 import BeautifulSoup
 from datetime import datetime
 import time
 import requests
-import re
 
 # ===== 設定 =====
-INSTAGRAM_USER = "akb48"
+INSTAGRAM_USER = "sakurazaka46jp"
 SESSIONID = "73295698085%3AGN9zs8UcGVCwu9%3A1%3AAYfILLFlkNkRGo0jasKQ3fmsbPOJyF10ISIFwQvMcg"
 WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45dHT2zfE6k8GjaskiT9CpaqEGEvmPtHsJrgrS7cQx5gw1qvd8/exec"
 # =================
@@ -38,33 +36,33 @@ def get_story_page_source(username):
     driver.quit()
     return html
 
-def extract_story_urls(html):
+def extract_story_urls_from_dom(html):
     soup = BeautifulSoup(html, "html.parser")
-    scripts = soup.find_all("script")
-    for script in scripts:
-        if "video_url" in script.text or "display_url" in script.text:
-            return script.text
-    return ""
+    urls = set()
 
-def parse_and_send(script_text):
-    urls_video = re.findall(r'"video_url":"([^\"]+)"', script_text)
-    urls_image = re.findall(r'"display_url":"([^\"]+)"', script_text)
+    for img in soup.find_all("img"):
+        src = img.get("src")
+        if src and "scontent" in src:
+            urls.add(src)
 
-    all_urls = set(
-        url.replace("\\u0026", "&").replace("\\", "")
-        for url in urls_video + urls_image
-    )
+    for video in soup.find_all("video"):
+        src = video.get("src")
+        if src:
+            urls.add(src)
 
-    if not all_urls:
-        print("📬 ストーリー動画/画像は見つかりませんでした。")
+    return urls
+
+def parse_and_send(urls):
+    if not urls:
+        print("📬 ストーリー画像/動画は見つかりませんでした。")
         return
 
-    for url in all_urls:
+    for url in urls:
         payload = {
             "publishedDate": datetime.now().strftime("%Y-%m-%d"),
             "platform": "Instagram Story",
             "channel": INSTAGRAM_USER,
-            "title": "(タイトル不明・ストーリー)",
+            "title": "(DOM抽出ストーリー)",
             "videoUrl": url
         }
         try:
@@ -77,10 +75,7 @@ if __name__ == "__main__":
     try:
         print(f"🔍 {INSTAGRAM_USER} のストーリーを取得中（Selenium）...")
         html = get_story_page_source(INSTAGRAM_USER)
-        script = extract_story_urls(html)
-        if script:
-            parse_and_send(script)
-        else:
-            print("📬 スクリプト内にストーリー情報が見つかりませんでした。")
+        urls = extract_story_urls_from_dom(html)
+        parse_and_send(urls)
     except Exception as e:
         print(f"❌ エラー発生: {e}")
