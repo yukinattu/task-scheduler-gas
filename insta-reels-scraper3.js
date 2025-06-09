@@ -131,36 +131,24 @@ async function scrapeThreads(page, existingIds) {
       const textDivs = Array.from(firstArticle.querySelectorAll("div[dir='auto']"));
       const content = textDivs.map(div => div.innerText).join("\n").trim();
 
-      const anchorTags = Array.from(firstArticle.querySelectorAll("a[href*='/@']"));
-      const postLink = anchorTags.find(a => a.href.includes("/post/"))?.href;
-
       return {
-        content,
-        href: postLink?.startsWith("http") ? postLink : `https://www.threads.net${postLink}`
+        content
       };
     });
 
-    if (!postData || !postData.href) {
+    if (!postData) {
       console.log("⏭️ Threads投稿は見つかりませんでした");
       return;
     }
 
-    const normalizedUrl = postData.href.trim();
-    const id = extractId(normalizedUrl, "threads");
-    if (!id) throw new Error("❌ Threads ID抽出失敗");
-
-    if (existingIds.includes(id)) {
-      console.log(`⏭️ Threads 重複スキップ: ${id}`);
-      return;
-    }
-
+    // 投稿があったら記録（videoUrlはアカウントURLに固定）
     const publishedDate = new Date().toISOString().split("T")[0];
     const data = {
       publishedDate,
       platform: "Threads",
       channel: INSTAGRAM_USER,
       title: postData.content.slice(0, 100),
-      videoUrl: normalizedUrl
+      videoUrl: `https://www.threads.net/@${INSTAGRAM_USER}`
     };
 
     const res = await fetch(WEBHOOK_URL, {
@@ -169,7 +157,7 @@ async function scrapeThreads(page, existingIds) {
       headers: { "Content-Type": "application/json" }
     });
 
-    console.log("✅ Threads 送信成功:", await res.text());
+    console.log("✅ Threads 送信成功（投稿があったことを記録）:", await res.text());
   } catch (e) {
     console.warn("⚠️ Threads取得失敗:", e.message);
   }
