@@ -1,0 +1,20 @@
+name: Run Instagram Reels Scraper (10 times/day)
+
+on:
+  schedule:
+    - cron: '0 9,10,11,12,13,14,15,16,17,18 * * *'  # 1日10回だけ実行
+  workflow_dispatch:
+
+jobs:
+  instagram-reels:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm install
+      - name: Run Instagram Reels scraper
+        run: node insta-reels-scraper.js
