@@ -1,4 +1,3 @@
-
 const puppeteer = require("puppeteer-extra");
 const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 const fs = require("fs");
@@ -8,14 +7,15 @@ puppeteer.use(StealthPlugin());
 
 const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45dHT2zfE6k8GjaskiT9CpaqEGEvmPtHsJrgrS7cQx5gw1qvd8/exec";
 const EXISTING_URLS_API = WEBHOOK_URL;
-const INSTAGRAM_USER = "sayaka_okada";
+const INSTAGRAM_USER = "a_n_o2mass";
 
 const REELS_URL = `https://www.instagram.com/${INSTAGRAM_USER}/reels/`;
 const FEED_URL = `https://www.instagram.com/${INSTAGRAM_USER}/`;
 const STORY_URL = `https://www.instagram.com/stories/${INSTAGRAM_USER}/`;
 const THREADS_URL = `https://www.threads.net/@${INSTAGRAM_USER}`;
 
-const INSTAGRAM_SESSIONID = "73295698085%3ALu2YBiMIgHLOfG%3A8%3AAYfOlJxDa3gSGVlRcAVgdMDI3NEpkSp8TzL7ejqw0Q";
+const INSTAGRAM_SESSIONID = "73295698085%3AflIqyXQBzGqX6H%3A6%3AAYdmTirfX6W7dUDXkeeztDHlcPV8NuKy0sCqu5c6XQ";
+const THREADS_SESSIONID = "75366315757%3AXcxInlloUX21b8%3A21%3AAYdMw-XT7XrZC5T6ANEBQSNCUd8fh9HQvWVIjOVUnA";
 
 function extractId(url, type) {
   if (type === "threads") {
@@ -128,7 +128,6 @@ async function scrapeThreads(page, existingIds) {
       if (!articles.length) return null;
 
       const firstArticle = articles[0];
-
       const textDivs = Array.from(firstArticle.querySelectorAll("div[dir='auto']"));
       const content = textDivs.map(div => div.innerText).join("\n").trim();
 
@@ -196,14 +195,24 @@ async function scrapeThreads(page, existingIds) {
   const page = await browser.newPage();
 
   try {
-    await page.setCookie({
-      name: "sessionid",
-      value: INSTAGRAM_SESSIONID,
-      domain: ".instagram.com",
-      path: "/",
-      httpOnly: true,
-      secure: true
-    });
+    await page.setCookie(
+      {
+        name: "sessionid",
+        value: INSTAGRAM_SESSIONID,
+        domain: ".instagram.com",
+        path: "/",
+        httpOnly: true,
+        secure: true
+      },
+      {
+        name: "sessionid",
+        value: THREADS_SESSIONID,
+        domain: ".threads.net",
+        path: "/",
+        httpOnly: true,
+        secure: true
+      }
+    );
 
     await page.setUserAgent(
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/" +
