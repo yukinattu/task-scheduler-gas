@@ -9,25 +9,75 @@ const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45d
 const EXISTING_URLS_API = WEBHOOK_URL;
 const INSTAGRAM_USER = "a_n_o2mass";
 const REELS_URL = `https://www.instagram.com/${INSTAGRAM_USER}/reels/`;
+const FEED_URL = `https://www.instagram.com/${INSTAGRAM_USER}/`;
 
 // milimori111 のセッションID
 const INSTAGRAM_SESSIONID = "73295698085%3ALu2YBiMIgHLOfG%3A8%3AAYfOlJxDa3gSGVlRcAVgdMDI3NEpkSp8TzL7ejqw0Q";
 
-function extractVideoId(url) {
-  const match = url?.match(/\/reel\/([^/?]+)/);
+function extractId(url, type) {
+  const match = url?.match(type === 'reel' ? /\/reel\/([^/?]+)/ : /\/p\/([^/?]+)/);
   return match ? match[1] : null;
 }
 
-(async () => {
-  let existingVideoIds = [];
+async function scrapeAndPost(page, url, type, existingIds) {
+  await page.goto(url, { waitUntil: "networkidle2", timeout: 0 });
+  await page.waitForTimeout(5000);
 
+  const selector = `a[href*='/${type}/']`;
+  await page.waitForSelector(selector, { timeout: 10000 });
+
+  const postUrls = await page.evaluate((type) => {
+    return Array.from(document.querySelectorAll(`a[href*='/${type}/']`))
+      .map(a => a.href)
+      .filter((v, i, self) => self.indexOf(v) === i);
+  }, type);
+
+  if (!postUrls.length) throw new Error(`❌ ${type}が見つかりませんでした`);
+
+  const normalizedUrl = postUrls[0].trim().replace(/\/+\$/, "");
+  const id = extractId(normalizedUrl, type);
+  if (!id) throw new Error(`❌ ${type} IDの抽出失敗`);
+
+  if (existingIds.includes(id)) {
+    console.log(`⏭️ 重複スキップ: ${id}`);
+    return;
+  }
+
+  await page.goto(normalizedUrl, { waitUntil: "networkidle2", timeout: 0 });
+  await page.waitForTimeout(3000);
+
+  const titleText = await page.evaluate(() => {
+    const meta = document.querySelector('meta[property="og:title"]');
+    return meta?.content || "(タイトル不明)";
+  });
+
+  const publishedDate = new Date().toISOString().split("T")[0];
+  const data = {
+    publishedDate,
+    platform: type === 'reel' ? "Instagram Reels" : "Instagram Feed",
+    channel: INSTAGRAM_USER,
+    title: titleText,
+    videoUrl: normalizedUrl
+  };
+
+  const postRes = await fetch(WEBHOOK_URL, {
+    method: "POST",
+    body: JSON.stringify(data),
+    headers: { "Content-Type": "application/json" }
+  });
+
+  console.log(`✅ 送信成功 (${type}):`, await postRes.text());
+}
+
+(async () => {
+  let existingIds = [];
   try {
     const res = await fetch(EXISTING_URLS_API);
     const urls = await res.json();
-    existingVideoIds = urls
-      .map(url => extractVideoId((url || "").toString().trim().replace(/\/+$/, "")))
-      .filter(Boolean);
-    console.log("📄 既存Reel ID数:", existingVideoIds.length);
+    existingIds = urls.map(url => {
+      return extractId((url || "").toString().trim().replace(/\/+\$/, ""), url.includes("/reel") ? "reel" : "p");
+    }).filter(Boolean);
+    console.log("📄 既存投稿 ID数:", existingIds.length);
   } catch (e) {
     console.warn("⚠️ 既存URL取得失敗:", e.message);
   }
@@ -50,57 +100,8 @@ function extractVideoId(url) {
       (Math.floor(Math.random() * 20) + 90) + ".0.0.0 Safari/537.36"
     );
 
-    await page.goto(REELS_URL, { waitUntil: "networkidle2", timeout: 0 });
-    await page.waitForTimeout(5000);
-
-    const isBlocked = await page.evaluate(() => {
-      return document.body.innerText.includes("ログイン") || document.querySelector("form input[name='username']") !== null;
-    });
-    if (isBlocked) throw new Error("❌ InstagramによるBot検知またはログインスクリーン表示");
-
-    await page.waitForSelector("a[href*='/reel/']", { timeout: 10000 });
-
-    const reelUrls = await page.evaluate(() => {
-      return Array.from(document.querySelectorAll("a[href*='/reel/']"))
-        .map(a => a.href)
-        .filter((v, i, self) => self.indexOf(v) === i);
-    });
-
-    if (!reelUrls.length) throw new Error("❌ Reelsが見つかりませんでした");
-
-    const normalizedUrl = reelUrls[0].trim().replace(/\/+$/, "");
-    const videoId = extractVideoId(normalizedUrl);
-    if (!videoId) throw new Error("❌ Reel IDの抽出失敗");
-
-    if (existingVideoIds.includes(videoId)) {
-      console.log(`⏭️ 重複スキップ: ${videoId}`);
-      return;
-    }
-
-    await page.goto(normalizedUrl, { waitUntil: "networkidle2", timeout: 0 });
-    await page.waitForTimeout(3000);
-
-    const titleText = await page.evaluate(() => {
-      const meta = document.querySelector('meta[property="og:title"]');
-      return meta?.content || "(タイトル不明)";
-    });
-
-    const publishedDate = new Date().toISOString().split("T")[0];
-    const data = {
-      publishedDate,
-      platform: "Instagram Reels",
-      channel: INSTAGRAM_USER,
-      title: titleText,
-      videoUrl: normalizedUrl
-    };
-
-    const postRes = await fetch(WEBHOOK_URL, {
-      method: "POST",
-      body: JSON.stringify(data),
-      headers: { "Content-Type": "application/json" }
-    });
-
-    console.log(`✅ 送信成功:`, await postRes.text());
+    await scrapeAndPost(page, REELS_URL, "reel", existingIds);
+    await scrapeAndPost(page, FEED_URL, "p", existingIds);
   } catch (e) {
     console.error(`❌ 処理失敗:`, e.message);
   } finally {
