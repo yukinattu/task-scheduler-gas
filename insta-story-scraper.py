@@ -1,17 +1,17 @@
 from seleniumwire import webdriver
 from selenium.webdriver.chrome.options import Options
-from bs4 import BeautifulSoup
 from datetime import datetime
 import time
 import requests
+import json
 
 # ===== 設定 =====
-INSTAGRAM_USER = ""
+INSTAGRAM_USER = "a_n_o2mass"
 SESSIONID = "73295698085%3AGN9zs8UcGVCwu9%3A1%3AAYfILLFlkNkRGo0jasKQ3fmsbPOJyF10ISIFwQvMcg"
 WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45dHT2zfE6k8GjaskiT9CpaqEGEvmPtHsJrgrS7cQx5gw1qvd8/exec"
 # =================
 
-def get_highlight_urls(username):
+def get_story_urls(username):
     chrome_options = Options()
     chrome_options.add_argument("--headless")
     chrome_options.add_argument("--disable-gpu")
@@ -33,45 +33,51 @@ def get_highlight_urls(username):
         "secure": True
     })
 
-    profile_url = f"https://www.instagram.com/{username}/"
-    driver.get(profile_url)
-    time.sleep(5)
+    story_url = f"https://www.instagram.com/stories/{username}/"
+    driver.get(story_url)
+    time.sleep(6)
 
-    soup = BeautifulSoup(driver.page_source, "html.parser")
-    highlight_urls = []
-
-    for a in soup.find_all("a", href=True):
-        if a["href"].startswith("/stories/highlights/"):
-            full_url = f"https://www.instagram.com{a['href']}"
-            if full_url not in highlight_urls:
-                highlight_urls.append(full_url)
+    story_urls = set()
+    for request in driver.requests:
+        if request.response and "/api/v1/feed/reels_media/" in request.url:
+            try:
+                body = request.response.body.decode("utf-8")
+                data = json.loads(body)
+                items = data.get("reel", {}).get("items", [])
+                for item in items:
+                    story_id = item.get("id")
+                    if story_id:
+                        full_url = f"https://www.instagram.com/stories/{username}/{story_id}/"
+                        story_urls.add(full_url)
+            except Exception as e:
+                print("❌ JSON解析失敗:", e)
 
     driver.quit()
-    return highlight_urls
+    return story_urls
 
-def post_to_webhook(highlight_urls):
-    if not highlight_urls:
-        print("📭 ハイライトURLが見つかりませんでした。")
+def post_to_webhook(story_urls):
+    if not story_urls:
+        print("📭 ストーリーURLが見つかりませんでした。")
         return
 
-    for url in highlight_urls:
+    for url in story_urls:
         payload = {
             "publishedDate": datetime.now().strftime("%Y-%m-%d"),
-            "platform": "Instagram Story Highlight",
+            "platform": "Instagram Story",
             "channel": INSTAGRAM_USER,
-            "title": "(ハイライトURL)",
+            "title": "(ストーリーURL)",
             "videoUrl": url
         }
         try:
             res = requests.post(WEBHOOK_URL, json=payload)
-            print(f"✅ ハイライトURL送信成功: {url}")
+            print(f"✅ ストーリーURL送信成功: {url}")
         except Exception as e:
             print(f"❌ Webhook送信失敗: {e}")
 
 if __name__ == "__main__":
     try:
-        print(f"🔍 {INSTAGRAM_USER} のハイライトリンクを取得中...")
-        urls = get_highlight_urls(INSTAGRAM_USER)
+        print(f"🔍 {INSTAGRAM_USER} のストーリーIDリンクを取得中...")
+        urls = get_story_urls(INSTAGRAM_USER)
         post_to_webhook(urls)
     except Exception as e:
         print(f"❌ エラー発生: {e}")
