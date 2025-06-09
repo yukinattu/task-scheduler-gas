@@ -10,6 +10,9 @@ const EXISTING_URLS_API = WEBHOOK_URL;
 const INSTAGRAM_USER = "nogizaka46_official";
 const REELS_URL = `https://www.instagram.com/${INSTAGRAM_USER}/reels/`;
 
+// ⬇️ InstagramのログインセッションID
+const INSTAGRAM_SESSIONID = "7132102982%3A1woRTzWRC3s791%3A3%3AAYdQb3HrbWt5FawavmpEQMhXmDSNEtHCycciSK286w";
+
 function extractVideoId(url) {
   const match = url?.match(/\/reel\/([^/?]+)/);
   return match ? match[1] : null;
@@ -33,6 +36,16 @@ function extractVideoId(url) {
   const page = await browser.newPage();
 
   try {
+    // ✅ セッションCookieのセット
+    await page.setCookie({
+      name: "sessionid",
+      value: INSTAGRAM_SESSIONID,
+      domain: ".instagram.com",
+      path: "/",
+      httpOnly: true,
+      secure: true
+    });
+
     await page.setUserAgent(
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/" +
       (Math.floor(Math.random() * 20) + 90) + ".0.0.0 Safari/537.36"
