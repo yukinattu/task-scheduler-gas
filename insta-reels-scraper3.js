@@ -1,11 +1,11 @@
-
 const puppeteer = require("puppeteer-extra");
 const StealthPlugin = require("puppeteer-extra-plugin-stealth");
+const fs = require("fs");
 const fetch = (...args) => import("node-fetch").then(({ default: fetch }) => fetch(...args));
 
 puppeteer.use(StealthPlugin());
 
-const WEBHOOK_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEBHOOK";
+const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45dHT2zfE6k8GjaskiT9CpaqEGEvmPtHsJrgrS7cQx5gw1qvd8/exec";
 const EXISTING_URLS_API = WEBHOOK_URL;
 const INSTAGRAM_USER = "sayaka_okada";
 
@@ -14,7 +14,7 @@ const FEED_URL = `https://www.instagram.com/${INSTAGRAM_USER}/`;
 const STORY_URL = `https://www.instagram.com/stories/${INSTAGRAM_USER}/`;
 const THREADS_URL = `https://www.threads.net/@${INSTAGRAM_USER}`;
 
-const INSTAGRAM_SESSIONID = "72915069255%3Agu5n0Aa3JjIBGt%3A18%3AAYeKOboFGVe14a_U4iPNDyhDpppyU7TAii2Zh6PX0Q";
+const INSTAGRAM_SESSIONID = "73295698085%3ALu2YBiMIgHLOfG%3A8%3AAYfOlJxDa3gSGVlRcAVgdMDI3NEpkSp8TzL7ejqw0Q";
 
 function extractId(url, type) {
   const match = url?.match(type === 'reel' ? /\/reel\/([^/?]+)/ : /\/p\/([^/?]+)/);
@@ -56,7 +56,7 @@ async function scrapeAndPost(page, url, type, existingIds) {
   const publishedDate = new Date().toISOString().split("T")[0];
   const data = {
     publishedDate,
-    platform: type === "reel" ? "Instagram Reels" : "Instagram Feed",
+    platform: type === 'reel' ? "Instagram Reels" : "Instagram Feed",
     channel: INSTAGRAM_USER,
     title: titleText,
     videoUrl: normalizedUrl
@@ -76,9 +76,9 @@ async function checkAndPostStory(page) {
     await page.goto(STORY_URL, { waitUntil: "networkidle2", timeout: 0 });
     await page.waitForTimeout(5000);
 
-    const isUnavailable = await page.evaluate(() =>
-      document.body.innerText.includes("This story is unavailable")
-    );
+    const isUnavailable = await page.evaluate(() => {
+      return document.body.innerText.includes("This story is unavailable");
+    });
 
     if (!isUnavailable) {
       const publishedDate = new Date().toISOString().split("T")[0];
@@ -167,7 +167,8 @@ async function scrapeThreads(page) {
     });
 
     await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36"
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/" +
+      (Math.floor(Math.random() * 20) + 90) + ".0.0.0 Safari/537.36"
     );
 
     await scrapeAndPost(page, REELS_URL, "reel", existingIds);
