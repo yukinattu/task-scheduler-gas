@@ -13,7 +13,7 @@ const FEED_URL = `https://www.instagram.com/${INSTAGRAM_USER}/`;
 const STORY_URL = `https://www.instagram.com/stories/${INSTAGRAM_USER}/`;
 
 // milimori111 のセッションID
-const INSTAGRAM_SESSIONID = "72915069255%3Agu5n0Aa3JjIBGt%3A18%3AAYeKOboFGVe14a_U4iPNDyhDpppyU7TAii2Zh6PX0Q";
+const INSTAGRAM_SESSIONID = "72915069255%3ASIUXbdiF8sjuRT%3A1%3AAYdBWnsIW8eU3d0akvDOlt7JLQyq9pZYr2o_YgdFEw";
 
 function extractId(url, type) {
   const match = url?.match(type === 'reel' ? /\/reel\/([^/?]+)/ : /\/p\/([^/?]+)/);
