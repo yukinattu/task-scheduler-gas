@@ -1,16 +1,17 @@
-import tempfile
 from seleniumwire import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from datetime import datetime
+import tempfile
 import time
 import requests
 import re
 
 # ===== 設定 =====
-INSTAGRAM_USER = ""
+INSTAGRAM_USER = "niziu_info_official"
 SESSIONID = "73295698085%3AGN9zs8UcGVCwu9%3A1%3AAYfILLFlkNkRGo0jasKQ3fmsbPOJyF10ISIFwQvMcg"
 WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45dHT2zfE6k8GjaskiT9CpaqEGEvmPtHsJrgrS7cQx5gw1qvd8/exec"
 # =================
@@ -45,9 +46,25 @@ def get_story_urls_from_media(username):
         )
         print("🎥 ストーリー再生UIが表示されました")
         body = driver.find_element(By.TAG_NAME, "body")
+
+        # ✅ ストーリー強制再生（クリック＋左右キー）
         for _ in range(3):
             body.click()
             time.sleep(0.5)
+        body.send_keys(Keys.ARROW_RIGHT)
+        time.sleep(0.5)
+        body.send_keys(Keys.ARROW_RIGHT)
+
+        # ✅ img/videoタグをクリック
+        for tag in ["video", "img"]:
+            try:
+                elements = driver.find_elements(By.TAG_NAME, tag)
+                if elements:
+                    elements[0].click()
+                    print(f"🖱️ {tag}タグをクリックしました")
+            except:
+                pass
+
     except Exception:
         print("⚠️ ストーリーUIの表示に失敗しました")
 
