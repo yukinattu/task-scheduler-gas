@@ -39,38 +39,26 @@ def get_story_urls_from_media(username):
 
     try:
         WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.TAG_NAME, "video"))
+            EC.presence_of_element_located((By.TAG_NAME, "body"))
         )
-        print("🎥 ストーリー再生UIが読み込まれました")
-    except:
-        print("⚠️ videoタグが読み込まれませんでしたが、続行します")
+        print("🎥 ストーリー再生UIが表示されました")
+        driver.find_element(By.TAG_NAME, "body").click()
+    except Exception:
+        print("⚠️ ストーリーUIの表示に失敗しました")
 
-    # ✅ videoタグを強制再生（ミュート）
-    try:
-        driver.execute_script("""
-            let videos = document.querySelectorAll("video");
-            for (let video of videos) {
-                video.muted = true;
-                video.play().catch(err => console.warn("⚠️ 再生失敗:", err));
-            }
-        """)
-        print("▶️ video.play() 実行済み")
-    except Exception as e:
-        print("⚠️ video.play() 実行エラー:", e)
+    print("⏳ .jpg/.mp4リクエストの受信を待機中...")
+    time.sleep(15)  # ← 静止画の読み込みに充分な時間
 
-    # ✅ 通信待機を長めに（CDN到達まで）
-    time.sleep(15)
-
-    story_ids = set()
+    story_urls = set()
     for request in driver.requests:
         if request.response and "cdninstagram" in request.url and (".mp4" in request.url or ".jpg" in request.url):
             matches = re.findall(r'/(\d{15,})_', request.url)
             for story_id in matches:
                 full_url = f"https://www.instagram.com/stories/{username}/{story_id}/"
-                story_ids.add(full_url)
+                story_urls.add(full_url)
 
     driver.quit()
-    return story_ids
+    return story_urls
 
 def post_to_webhook(story_urls):
     if not story_urls:
