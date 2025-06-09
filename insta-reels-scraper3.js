@@ -1,3 +1,4 @@
+
 const puppeteer = require("puppeteer-extra");
 const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 const fetch = (...args) => import("node-fetch").then(({ default: fetch }) => fetch(...args));
@@ -6,7 +7,7 @@ puppeteer.use(StealthPlugin());
 
 const WEBHOOK_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEBHOOK";
 const EXISTING_URLS_API = WEBHOOK_URL;
-const INSTAGRAM_USER = "a_n_o2mass";
+const INSTAGRAM_USER = "sayaka_okada";
 
 const REELS_URL = `https://www.instagram.com/${INSTAGRAM_USER}/reels/`;
 const FEED_URL = `https://www.instagram.com/${INSTAGRAM_USER}/`;
