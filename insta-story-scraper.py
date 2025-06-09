@@ -5,7 +5,7 @@ import re
 
 # ===== 設定 =====
 INSTAGRAM_USER = "nogizaka46_official"
-SESSIONID = "7132102982%3ANXl2NyhzamYhN2%3A4%3AAYeRrUxljqU7hNVdgFTi4oHjmXPBH38fhVktY1Un5g"
+SESSIONID = "73295698085%3AGN9zs8UcGVCwu9%3A1%3AAYfILLFlkNkRGo0jasKQ3fmsbPOJyF10ISIFwQvMcg"
 WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxtWswB_s3RZDCcA45dHT2zfE6k8GjaskiT9CpaqEGEvmPtHsJrgrS7cQx5gw1qvd8/exec"
 # =================
 
