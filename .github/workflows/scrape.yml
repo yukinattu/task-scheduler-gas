@@ -1,8 +1,8 @@
-name: Run Scrapers Every 10 Minutes
+name: Run Scrapers Every 60 Minutes
 
 on:
   schedule:
-    - cron: '*/10 * * * *'
+    - cron: '*/0 * * * *'
   workflow_dispatch:
 
 jobs:
