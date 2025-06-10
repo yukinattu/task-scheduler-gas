@@ -2,7 +2,7 @@ name: Run Instagram Reels Scraper (10 times/day)
 
 on:
   schedule:
-    - cron: '0 9,10,11,12,13,14,15,16,17,18 * * *'  # 毎日10回実行
+    - cron: '0 0,1,2,3,4,5,6,7,8,9 * * *'  # JSTの9〜18時に相当
   workflow_dispatch:
 
 jobs:
