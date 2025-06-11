@@ -1,5 +1,6 @@
 const puppeteer = require("puppeteer-extra");
 const StealthPlugin = require("puppeteer-extra-plugin-stealth");
+const fs = require("fs");
 const fetch = (...args) => import("node-fetch").then(({ default: fetch }) => fetch(...args));
 
 puppeteer.use(StealthPlugin());
@@ -38,9 +39,10 @@ function isShorts(url) {
   }
 
   const browser = await puppeteer.launch({
-    headless: "new", // 原因1: 新ヘッドレスモードに切り替え
+    headless: false, // ← 最重要ポイント：描画可視化で100%成功へ近づく
     args: ["--no-sandbox"]
   });
+
   const page = await browser.newPage();
   await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/114.0.0.0 Safari/537.36");
 
@@ -52,7 +54,7 @@ function isShorts(url) {
       try {
         await page.goto(url, { waitUntil: "domcontentloaded", timeout: 0 });
 
-        // 原因3: 複数回スクロールして描画を促す
+        // スクロールしてLazyロード促進
         await page.evaluate(async () => {
           for (let i = 0; i < 3; i++) {
             window.scrollBy(0, window.innerHeight);
@@ -60,22 +62,22 @@ function isShorts(url) {
           }
         });
 
-        // Shortsは描画完了を明示的に待つ（最大15秒）
+        // Shortsページで要素を明示的に待機
         if (mode === "shorts") {
           await page.waitForSelector('a[href*="/shorts/"]', { timeout: 15000 });
         }
+
+        // ページHTMLを保存（失敗調査用）
+        const html = await page.content();
+        fs.writeFileSync(`shorts_dump_${channelUrl.split("/").pop()}.html`, html);
 
         const result = await page.evaluate((mode) => {
           if (mode === "shorts") {
             const anchors = Array.from(document.querySelectorAll('a[href*="/shorts/"]'));
             const first = anchors[0];
-            const titleEl =
-              first?.closest('ytd-reel-video-renderer')?.querySelector('#details #title') ||
-              first?.getAttribute('title') ||
-              first?.textContent;
-            const href = first?.href;
-            const title = titleEl?.trim();
-            return href && title ? { videoUrl: href, title } : null;
+            if (!first) return null;
+            const title = first.getAttribute("title") || first.textContent?.trim() || "";
+            return { videoUrl: first.href, title };
           } else {
             const item = document.querySelector("ytd-rich-item-renderer, ytd-grid-video-renderer");
             const anchor = item?.querySelector('a#video-title, a#video-title-link');
@@ -85,8 +87,8 @@ function isShorts(url) {
           }
         }, mode);
 
-        if (!result) {
-          throw new Error("動画DOMが取得できませんでした（描画またはセレクタの不一致）");
+        if (!result || !result.videoUrl) {
+          throw new Error("動画リンクが取得できませんでした。");
         }
 
         const normalizedUrl = result.videoUrl.trim();
@@ -104,7 +106,7 @@ function isShorts(url) {
           publishedDate,
           platform,
           channel: channelUrl.split("/").pop(),
-          title: result.title,
+          title: result.title || "", // title取得失敗も許容
           videoUrl: normalizedUrl
         };
 
@@ -114,16 +116,14 @@ function isShorts(url) {
           headers: { "Content-Type": "application/json" }
         });
 
-        console.log(`✅ 送信成功（${platform}）: ${result.title}`);
+        console.log(`✅ 送信成功（${platform}）: ${data.title || "(タイトルなし)"}`);
       } catch (e) {
-        // 🔍 原因推定ログ出力
         console.error(`❌ 処理失敗（${url}）: ${e.message}`);
         if (mode === "shorts") {
           console.error("🛠 推定される原因:");
-          console.error("  ── 💡 headless環境で描画が壊れている → headless: \"new\" を推奨");
-          console.error("  ── 💡 セレクタが不一致 → querySelectorAll で緩めに取得に変更済み");
-          console.error("  ── 💡 描画が間に合っていない → スクロール＋待機も実施済み");
-          console.error("  ── 💡 それでも失敗する場合 → ページ構造が変更された可能性あり");
+          console.error("  ── 💡 headless環境描画トラブル → headless: falseに変更済み");
+          console.error("  ── 💡 DOM構造変更の可能性 → shorts_dump_xxx.html を確認して修正可能");
+          console.error("  ── 💡 セレクタのズレ → a[href*=\"/shorts/\"]で緩和済み");
         }
       }
     }
