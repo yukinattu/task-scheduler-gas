@@ -41,7 +41,9 @@ function isShorts(url) {
   const page = await browser.newPage();
   await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/114.0.0.0 Safari/537.36");
 
-  for (const channelUrl of YOUTUBE_CHANNELS) {
+  for (const rawChannelUrl of YOUTUBE_CHANNELS) {
+    const channelUrl = rawChannelUrl.replace(/[^\w:/@.-]/g, ""); // 不正記号除去
+
     for (const mode of ["videos", "shorts"]) {
       const url = `${channelUrl}/${mode}`;
       console.log(`🚀 チェック開始: ${url}`);
@@ -68,7 +70,7 @@ function isShorts(url) {
 
         if (!result) throw new Error("❌ 投稿が見つかりませんでした");
 
-        const normalizedUrl = result.videoUrl.trim();
+        const normalizedUrl = result.videoUrl.trim().replace(/[:\s]+$/, "");
         const videoId = extractVideoId(normalizedUrl);
 
         if (!videoId || existingVideoIds.includes(videoId)) {
@@ -87,7 +89,7 @@ function isShorts(url) {
           videoUrl: normalizedUrl
         };
 
-        const postRes = await fetch(WEBHOOK_URL, {
+        await fetch(WEBHOOK_URL, {
           method: "POST",
           body: JSON.stringify(data),
           headers: { "Content-Type": "application/json" }
