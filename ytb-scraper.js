@@ -37,12 +37,12 @@ function isShorts(url) {
     console.warn("⚠️ 既存URL取得失敗:", e.message);
   }
 
-  const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
+  const browser = await puppeteer.launch({ headless: "new", args: ["--no-sandbox"] });
   const page = await browser.newPage();
   await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/114.0.0.0 Safari/537.36");
 
   for (const rawChannelUrl of YOUTUBE_CHANNELS) {
-    const channelUrl = rawChannelUrl.replace(/[^\w:/@.-]/g, ""); // 不正記号除去
+    const channelUrl = rawChannelUrl.replace(/[^\w:/@.-]/g, ""); // 記号除去
 
     for (const mode of ["videos", "shorts"]) {
       const url = `${channelUrl}/${mode}`;
@@ -52,18 +52,21 @@ function isShorts(url) {
         await page.goto(url, { waitUntil: "networkidle2", timeout: 0 });
         await page.waitForTimeout(3000);
 
-        // Shortsタブは遅延読み込みのため、明示的にスクロールして要素を描画させる
+        // Shorts対策: 強制スクロール＋複数アンカーから抽出
         if (mode === "shorts") {
-          await page.evaluate(() => window.scrollBy(0, 1000));
-          await page.waitForTimeout(1500);
+          await page.evaluate(() => window.scrollBy(0, 1500));
+          await page.waitForTimeout(2000);
         }
 
         const result = await page.evaluate((mode) => {
           if (mode === "shorts") {
-            const anchor = document.querySelector("ytd-grid-video-renderer a.yt-simple-endpoint[href^='/shorts/']");
-            const href = anchor?.href;
-            const title = anchor?.ariaLabel || anchor?.title || anchor?.textContent?.trim() || "";
-            return href && title ? { videoUrl: href, title } : null;
+            const anchors = Array.from(document.querySelectorAll("a[href*='/shorts/']"));
+            const target = anchors.find(a => a?.href && a?.ariaLabel);
+            if (!target) return null;
+            return {
+              videoUrl: target.href,
+              title: target.ariaLabel || target.title || target.textContent?.trim() || ""
+            };
           } else {
             const item = document.querySelector("ytd-rich-item-renderer, ytd-grid-video-renderer");
             const anchor = item?.querySelector("a#video-title-link, a#video-title");
