@@ -50,13 +50,22 @@ function isShorts(url) {
         await page.goto(url, { waitUntil: "networkidle2", timeout: 0 });
         await page.waitForTimeout(3000);
 
-        const result = await page.evaluate(() => {
-          const item = document.querySelector("ytd-rich-item-renderer, ytd-grid-video-renderer");
-          const anchor = item?.querySelector('a#video-title, a#video-title-link');
-          const href = anchor?.href;
-          const title = anchor?.textContent?.trim();
-          return href && title ? { videoUrl: href, title } : null;
-        });
+        const result = await page.evaluate((mode) => {
+          if (mode === "shorts") {
+            const anchor = document.querySelector('a[href*="/shorts/"]');
+            const titleEl = anchor?.parentElement?.querySelector('#details #title') ||
+                            anchor?.closest('ytd-reel-video-renderer')?.querySelector('#details #title');
+            const href = anchor?.href;
+            const title = titleEl?.textContent?.trim();
+            return href && title ? { videoUrl: href, title } : null;
+          } else {
+            const item = document.querySelector("ytd-rich-item-renderer, ytd-grid-video-renderer");
+            const anchor = item?.querySelector('a#video-title, a#video-title-link');
+            const href = anchor?.href;
+            const title = anchor?.textContent?.trim();
+            return href && title ? { videoUrl: href, title } : null;
+          }
+        }, mode);
 
         if (!result) throw new Error("❌ 投稿が見つかりませんでした");
 
