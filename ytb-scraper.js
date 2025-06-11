@@ -42,7 +42,7 @@ function isShorts(url) {
   await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/114.0.0.0 Safari/537.36");
 
   for (const rawChannelUrl of YOUTUBE_CHANNELS) {
-    const channelUrl = rawChannelUrl.replace(/[^\w:/@.-]/g, ""); // 不正記号除去
+    const channelUrl = rawChannelUrl.replace(/[^\w:/@.-]/g, ""); // 記号除去
 
     for (const mode of ["videos", "shorts"]) {
       const url = `${channelUrl}/${mode}`;
@@ -52,10 +52,15 @@ function isShorts(url) {
         await page.goto(url, { waitUntil: "networkidle2", timeout: 0 });
         await page.waitForTimeout(3000);
 
+        // Shortsは lazy load 強めのため明示的にスクロール
+        if (mode === "shorts") {
+          await page.evaluate(() => window.scrollBy(0, 500));
+          await page.waitForTimeout(1500);
+        }
+
         const result = await page.evaluate((mode) => {
           if (mode === "shorts") {
-            const item = document.querySelector("ytd-reel-video-renderer");
-            const anchor = item?.querySelector("a");
+            const anchor = document.querySelector("ytd-reel-video-renderer a[href^='/shorts/']");
             const href = anchor?.href;
             const title = anchor?.ariaLabel || anchor?.title || "";
             return href && title ? { videoUrl: href, title } : null;
