@@ -47,14 +47,24 @@ function isShorts(url) {
       console.log(`🚀 チェック開始: ${url}`);
 
       try {
-        await page.goto(url, { waitUntil: "networkidle2", timeout: 0 });
+        await page.goto(url, { waitUntil: "domcontentloaded", timeout: 0 });
+
+        // Lazyロード対策（スクロールで要素描画促進）
+        await page.evaluate(() => {
+          window.scrollBy(0, window.innerHeight * 2);
+        });
         await page.waitForTimeout(3000);
+
+        // Shortsのみセレクタを明示的に待機
+        if (mode === "shorts") {
+          await page.waitForSelector('ytd-reel-video-renderer a[href*="/shorts/"]', { timeout: 10000 });
+        }
 
         const result = await page.evaluate((mode) => {
           if (mode === "shorts") {
-            const anchor = document.querySelector('a[href*="/shorts/"]');
-            const titleEl = anchor?.parentElement?.querySelector('#details #title') ||
-                            anchor?.closest('ytd-reel-video-renderer')?.querySelector('#details #title');
+            const reel = document.querySelector('ytd-reel-video-renderer');
+            const anchor = reel?.querySelector('a[href*="/shorts/"]');
+            const titleEl = reel?.querySelector('#details #title');
             const href = anchor?.href;
             const title = titleEl?.textContent?.trim();
             return href && title ? { videoUrl: href, title } : null;
