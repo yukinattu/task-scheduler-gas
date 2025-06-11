@@ -50,13 +50,21 @@ function isShorts(url) {
         await page.goto(url, { waitUntil: "networkidle2", timeout: 0 });
         await page.waitForTimeout(3000);
 
-        const result = await page.evaluate(() => {
-          const item = document.querySelector("ytd-rich-item-renderer, ytd-grid-video-renderer");
-          const anchor = item?.querySelector('a#video-title, a#video-title-link');
-          const href = anchor?.href;
-          const title = anchor?.textContent?.trim();
-          return href && title ? { videoUrl: href, title } : null;
-        });
+        const result = await page.evaluate((mode) => {
+          if (mode === "shorts") {
+            const item = document.querySelector("ytd-reel-video-renderer");
+            const anchor = item?.querySelector("a");
+            const href = anchor?.href;
+            const title = anchor?.ariaLabel || anchor?.title || "";
+            return href && title ? { videoUrl: href, title } : null;
+          } else {
+            const item = document.querySelector("ytd-rich-item-renderer, ytd-grid-video-renderer");
+            const anchor = item?.querySelector("a#video-title-link, a#video-title");
+            const href = anchor?.href;
+            const title = anchor?.textContent?.trim();
+            return href && title ? { videoUrl: href, title } : null;
+          }
+        }, mode);
 
         if (!result) throw new Error("❌ 投稿が見つかりませんでした");
 
