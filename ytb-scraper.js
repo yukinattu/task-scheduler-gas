@@ -37,7 +37,10 @@ function isShorts(url) {
     console.warn("⚠️ 既存URL取得失敗:", e.message);
   }
 
-  const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
+  const browser = await puppeteer.launch({
+    headless: "new", // 原因1: 新ヘッドレスモードに切り替え
+    args: ["--no-sandbox"]
+  });
   const page = await browser.newPage();
   await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/114.0.0.0 Safari/537.36");
 
@@ -49,24 +52,29 @@ function isShorts(url) {
       try {
         await page.goto(url, { waitUntil: "domcontentloaded", timeout: 0 });
 
-        // Lazyロード対策（スクロールで要素描画促進）
-        await page.evaluate(() => {
-          window.scrollBy(0, window.innerHeight * 2);
+        // 原因3: 複数回スクロールして描画を促す
+        await page.evaluate(async () => {
+          for (let i = 0; i < 3; i++) {
+            window.scrollBy(0, window.innerHeight);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
         });
-        await page.waitForTimeout(3000);
 
-        // Shortsのみセレクタを明示的に待機
+        // Shortsは描画完了を明示的に待つ（最大15秒）
         if (mode === "shorts") {
-          await page.waitForSelector('ytd-reel-video-renderer a[href*="/shorts/"]', { timeout: 10000 });
+          await page.waitForSelector('a[href*="/shorts/"]', { timeout: 15000 });
         }
 
         const result = await page.evaluate((mode) => {
           if (mode === "shorts") {
-            const reel = document.querySelector('ytd-reel-video-renderer');
-            const anchor = reel?.querySelector('a[href*="/shorts/"]');
-            const titleEl = reel?.querySelector('#details #title');
-            const href = anchor?.href;
-            const title = titleEl?.textContent?.trim();
+            const anchors = Array.from(document.querySelectorAll('a[href*="/shorts/"]'));
+            const first = anchors[0];
+            const titleEl =
+              first?.closest('ytd-reel-video-renderer')?.querySelector('#details #title') ||
+              first?.getAttribute('title') ||
+              first?.textContent;
+            const href = first?.href;
+            const title = titleEl?.trim();
             return href && title ? { videoUrl: href, title } : null;
           } else {
             const item = document.querySelector("ytd-rich-item-renderer, ytd-grid-video-renderer");
@@ -77,7 +85,9 @@ function isShorts(url) {
           }
         }, mode);
 
-        if (!result) throw new Error("❌ 投稿が見つかりませんでした");
+        if (!result) {
+          throw new Error("動画DOMが取得できませんでした（描画またはセレクタの不一致）");
+        }
 
         const normalizedUrl = result.videoUrl.trim();
         const videoId = extractVideoId(normalizedUrl);
@@ -106,7 +116,15 @@ function isShorts(url) {
 
         console.log(`✅ 送信成功（${platform}）: ${result.title}`);
       } catch (e) {
-        console.error(`❌ 処理失敗（${url}）:`, e.message);
+        // 🔍 原因推定ログ出力
+        console.error(`❌ 処理失敗（${url}）: ${e.message}`);
+        if (mode === "shorts") {
+          console.error("🛠 推定される原因:");
+          console.error("  ── 💡 headless環境で描画が壊れている → headless: \"new\" を推奨");
+          console.error("  ── 💡 セレクタが不一致 → querySelectorAll で緩めに取得に変更済み");
+          console.error("  ── 💡 描画が間に合っていない → スクロール＋待機も実施済み");
+          console.error("  ── 💡 それでも失敗する場合 → ページ構造が変更された可能性あり");
+        }
       }
     }
   }
