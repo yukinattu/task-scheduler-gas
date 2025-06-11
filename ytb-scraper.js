@@ -39,8 +39,8 @@ function isShorts(url) {
   }
 
   const browser = await puppeteer.launch({
-    headless: false, // ← 最重要ポイント：描画可視化で100%成功へ近づく
-    args: ["--no-sandbox"]
+    headless: "new", // ← GitHub Actions 互換性重視のモード
+    args: ["--no-sandbox", "--disable-setuid-sandbox"]
   });
 
   const page = await browser.newPage();
@@ -121,7 +121,7 @@ function isShorts(url) {
         console.error(`❌ 処理失敗（${url}）: ${e.message}`);
         if (mode === "shorts") {
           console.error("🛠 推定される原因:");
-          console.error("  ── 💡 headless環境描画トラブル → headless: falseに変更済み");
+          console.error("  ── 💡 headless環境描画トラブル → headless: \"new\" で回避済み");
           console.error("  ── 💡 DOM構造変更の可能性 → shorts_dump_xxx.html を確認して修正可能");
           console.error("  ── 💡 セレクタのズレ → a[href*=\"/shorts/\"]で緩和済み");
         }
