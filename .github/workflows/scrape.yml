@@ -58,5 +58,4 @@ jobs:
       - name: Run YouTube scraper
         run: node ytb-scraper.js
 
-        run: node x-scraper.js
 
