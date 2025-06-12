@@ -58,29 +58,5 @@ jobs:
       - name: Run YouTube scraper
         run: node ytb-scraper.js
 
-  threads:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 20
-      - name: Install dependencies
-        run: npm install
-      - name: Run Threads scraper
-        run: node threads-scraper.js
-
-  x:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 20
-      - name: Install dependencies
-        run: npm install
-      - name: Run X scraper
         run: node x-scraper.js
 
